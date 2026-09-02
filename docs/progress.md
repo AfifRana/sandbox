@@ -27,6 +27,7 @@ Track of what's done and what's next. Update as you go.
 ## 🔜 Next up (priority order)
 
 - [ ] Run `docker compose up --build` — verify full stack end-to-end
+- [ ] docker-compose: add named volume for Oracle data (survive `docker compose down`)
 - [ ] product-service: Oracle persistence + Redis caching (replace placeholder)
 - [ ] payment-service: Strategy pattern for payment methods (card / wallet / bank transfer)
 - [ ] payment-service: emit `payment.paid` event; order-service consumes it → status PAID
