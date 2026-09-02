@@ -61,6 +61,24 @@ curl -X POST http://localhost:8080/api/v1/orders \
 mvn verify          # build + unit tests + JaCoCo coverage
 ```
 
+## Cleanup / removal
+
+Everything runs inside Docker — nothing is installed on the host.
+
+```bash
+docker compose down                        # remove containers + network (keeps images, volumes)
+docker compose down --volumes              # also remove volumes (DB data)
+docker compose down --rmi all --volumes    # also remove all images (full wipe)
+docker builder prune                       # clear build cache from --build
+```
+
+Local build artifacts (`target/` folders) come from running Maven locally, not from
+Docker — delete them manually if you want a fully clean workspace:
+
+```bash
+mvn clean                     # or: find . -type d -name target -prune -exec rm -rf {} +
+```
+
 ## Roadmap
 
 - [ ] Payment processing with Strategy pattern (card, wallet, bank transfer)
