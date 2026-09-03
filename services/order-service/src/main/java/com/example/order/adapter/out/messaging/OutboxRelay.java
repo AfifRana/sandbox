@@ -2,13 +2,8 @@ package com.example.order.adapter.out.messaging;
 
 import com.example.order.application.port.OrderEventOutbox;
 import com.example.order.domain.Order;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,12 +28,12 @@ public class OutboxRelay implements OrderEventOutbox {
     @Transactional
     public void append(Order order) {
         OutboxEntry entry = new OutboxEntry();
-        entry.id = UUID.randomUUID();
-        entry.aggregateId = order.id();
-        entry.type = "order.created";
-        entry.payload = toJson(order);
-        entry.createdAt = Instant.now();
-        entry.published = false;
+        entry.setId(UUID.randomUUID());
+        entry.setAggregateId(order.id());
+        entry.setType("order.created");
+        entry.setPayload(toJson(order));
+        entry.setCreatedAt(Instant.now());
+        entry.setPublished(false);
         repository.save(entry);
     }
 
@@ -46,28 +41,13 @@ public class OutboxRelay implements OrderEventOutbox {
     @Transactional
     public void publishPending() {
         repository.findTop50ByPublishedFalseOrderByCreatedAtAsc().forEach(entry -> {
-            kafkaPublisher.publish(entry.type, entry.aggregateId, entry.payload);
-            entry.published = true;
+            kafkaPublisher.publish(entry.getType(), entry.getAggregateId(), entry.getPayload());
+            entry.setPublished(true);
         });
     }
 
     private String toJson(Order order) {
         return "{\"orderId\":\"%s\",\"customerId\":\"%s\",\"totalAmount\":%s,\"status\":\"%s\"}"
                 .formatted(order.id(), order.customerId(), order.totalAmount(), order.status());
-    }
-
-    interface OutboxEntryRepository extends JpaRepository<OutboxEntry, UUID> {
-        List<OutboxEntry> findTop50ByPublishedFalseOrderByCreatedAtAsc();
-    }
-
-    @Entity
-    @jakarta.persistence.Table(name = "outbox_events")
-    static class OutboxEntry {
-        @Id UUID id;
-        @Column(name = "aggregate_id", nullable = false) UUID aggregateId;
-        @Column(nullable = false, length = 50) String type;
-        @Column(nullable = false, length = 4000) String payload;
-        @Column(name = "created_at", nullable = false) Instant createdAt;
-        @Column(nullable = false) boolean published;
     }
 }

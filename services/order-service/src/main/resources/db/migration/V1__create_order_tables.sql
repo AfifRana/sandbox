@@ -31,4 +31,6 @@ CREATE TABLE outbox_events (
     published   NUMBER(1) DEFAULT 0 NOT NULL
 );
 
-CREATE INDEX idx_outbox_pending ON outbox_events (created_at) WHERE published = 0;
+-- Oracle does not support partial indexes; a function-based index achieves the
+-- same goal: only unpublished (published = 0) rows get indexed entries.
+CREATE INDEX idx_outbox_pending ON outbox_events (CASE WHEN published = 0 THEN created_at END);

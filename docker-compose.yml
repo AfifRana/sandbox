@@ -14,6 +14,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 20
+    volumes:
+      - oracle-data:/opt/oracle/oradata
 
   kafka:
     image: apache/kafka:3.8.0
@@ -36,7 +38,9 @@ services:
       - "6379:6379"
 
   order-service:
-    build: ./services/order-service
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
     depends_on:
       oracle:
         condition: service_healthy
@@ -51,7 +55,9 @@ services:
       - "8080:8080"
 
   payment-service:
-    build: ./services/payment-service
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
     depends_on: [kafka]
     environment:
       KAFKA_BROKERS: kafka:29092
@@ -59,9 +65,14 @@ services:
       - "8081:8080"
 
   notification-service:
-    build: ./services/notification-service
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
     depends_on: [kafka]
     environment:
       KAFKA_BROKERS: kafka:29092
     ports:
       - "8082:8080"
+
+volumes:
+  oracle-data:
