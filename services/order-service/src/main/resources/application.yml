@@ -14,6 +14,7 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
+    table: order_flyway_history
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:

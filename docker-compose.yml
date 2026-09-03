@@ -54,6 +54,24 @@ services:
     ports:
       - "8080:8080"
 
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+    depends_on:
+      oracle:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      DB_URL: jdbc:oracle:thin:@oracle:1521/FREEPDB1
+      DB_USER: orders
+      DB_PASSWORD: orders
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    ports:
+      - "8081:8080"
+
   payment-service:
     build:
       context: .
@@ -62,7 +80,7 @@ services:
     environment:
       KAFKA_BROKERS: kafka:29092
     ports:
-      - "8081:8080"
+      - "8082:8080"
 
   notification-service:
     build:
@@ -72,7 +90,7 @@ services:
     environment:
       KAFKA_BROKERS: kafka:29092
     ports:
-      - "8082:8080"
+      - "8083:8080"
 
 volumes:
   oracle-data:
