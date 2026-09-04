@@ -2,6 +2,15 @@
 
 Track of what's done and what's next. Update as you go.
 
+## 🏷️ Releases / tags
+
+| Tag | Commit | What it marks |
+|---|---|---|
+| `orders-v0.1.0` | `e54757d` | Microservices scaffold, E2E verified: REST → Oracle → outbox → Kafka → consumers |
+| `orders-v0.2.0` | `4b24eab` | product-service with Oracle persistence + Redis cache-aside, E2E verified (cache miss/hit, TTL, evict-on-write) |
+
+Tags point at the **code milestone commit that was verified** — docs-only commits that follow are intentionally not tagged. Tags are local until pushed (`git push origin orders-v0.2.0`).
+
 ## ✅ Done
 
 - [x] Strategy notes & requirement mapping (`docs/notes.md`)
