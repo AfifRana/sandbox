@@ -4,12 +4,12 @@ Track of what's done and what's next. Update as you go.
 
 ## 🏷️ Releases / tags
 
-| Tag | Commit | What it marks |
-|---|---|---|
-| `orders-v0.1.0` | `e54757d` | Microservices scaffold, E2E verified: REST → Oracle → outbox → Kafka → consumers |
-| `orders-v0.2.0` | `f701278` | product-service with Oracle persistence + Redis cache-aside, E2E verified (cache miss/hit, TTL, evict-on-write) |
+| Tag | What it marks |
+|---|---|
+| `orders-v0.1.0` | Microservices scaffold, E2E verified: REST → Oracle → outbox → Kafka → consumers |
+| `orders-v0.2.0` | product-service with Oracle persistence + Redis cache-aside, E2E verified (cache miss/hit, TTL, evict-on-write) |
 
-Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Tags are local until pushed (`git push origin orders-v0.2.0`).
+Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`).
 
 ## ✅ Done
 
