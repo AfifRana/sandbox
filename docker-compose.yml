@@ -76,9 +76,12 @@ services:
     build:
       context: .
       dockerfile: services/payment-service/Dockerfile
-    depends_on: [kafka]
+    depends_on: [kafka, oracle]
     environment:
       KAFKA_BROKERS: kafka:29092
+      DB_URL: jdbc:oracle:thin:@oracle:1521/FREEPDB1
+      DB_USER: orders
+      DB_PASSWORD: orders
     ports:
       - "8082:8080"
 
