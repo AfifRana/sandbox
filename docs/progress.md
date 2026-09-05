@@ -8,6 +8,7 @@ Track of what's done and what's next. Update as you go.
 |---|---|
 | `orders-v0.1.0` | Microservices scaffold, E2E verified: REST → Oracle → outbox → Kafka → consumers |
 | `orders-v0.2.0` | product-service with Oracle persistence + Redis cache-aside, E2E verified (cache miss/hit, TTL, evict-on-write) |
+| `orders-v0.3.0` | payment-service with Strategy pattern + payment.paid event flow, E2E verified (order CREATED→PAID, idempotency, 402 decline) |
 
 Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`).
 
@@ -33,6 +34,13 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [x] `.dockerignore` (stale target/ classes no longer leak into images)
 - [x] Compose port assignments: order 8080, product 8081, payment 8082, notification 8083
 - [x] Tag `orders-v0.1.0` (E2E-verified scaffold, commit e54757d)
+- [x] payment-service: Strategy pattern (card / wallet / bank transfer) via EnumMap dispatch
+- [x] payment-service: transactional outbox → `payment.paid` on Kafka
+- [x] payment-service: idempotency — one payment per order (UNIQUE constraint + use-case check)
+- [x] payment-service: declined charges → 402 Payment Required (RFC 7807)
+- [x] order-service: consumes `payment.paid` → status CREATED→PAID (idempotent transition)
+- [x] order-service: GET /api/v1/orders/{id} endpoint
+- [x] E2E verified: order → payment → PAID; duplicate payment no-op; card decline 402; bank transfer PENDING; outbox drained
 - [x] payment-service skeleton (Kafka consumer with idempotency notes)
 - [x] notification-service skeleton (Kafka consumer)
 - [x] Multi-stage Dockerfile (non-root user, MaxRAMPercentage)
@@ -45,9 +53,7 @@ Tags point at the branch tip when the milestone was verified and documented — 
 
 ## 🔜 Next up (priority order)
 
-- [ ] payment-service: Strategy pattern for payment methods (card / wallet / bank transfer)
-- [ ] payment-service: emit `payment.paid` event; order-service consumes it → status PAID
-- [ ] Idempotent consumers: dedupe by orderId (Redis or DB table)
+- [ ] Idempotent consumers: dedupe by orderId beyond status checks (Redis or DB table)
 - [ ] API Gateway + JWT/OAuth2 resource servers
 - [ ] Resilience4j: circuit breaker + retry on inter-service calls
 - [ ] Observability: Micrometer + Prometheus + Grafana, OpenTelemetry tracing
