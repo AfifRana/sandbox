@@ -24,6 +24,8 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/actuator/health/**").permitAll()
+                    // Scraped by Prometheus over the internal Docker network.
+                    .requestMatchers("/actuator/prometheus").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
                     .requestMatchers("/api/v1/products/**").hasRole("ADMIN")
                     .anyRequest().denyAll())

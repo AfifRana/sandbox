@@ -31,8 +31,13 @@ public class ProductCatalogClient implements ProductCatalog {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
-    public ProductCatalogClient(@Value("${catalog.base-url}") String baseUrl, ObjectMapper objectMapper) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+    public ProductCatalogClient(RestClient.Builder restClientBuilder,
+                                @Value("${catalog.base-url}") String baseUrl,
+                                ObjectMapper objectMapper) {
+        // Use the auto-configured builder so the tracing interceptor is
+        // applied — the W3C traceparent header then propagates to
+        // product-service and spans link up in Jaeger.
+        this.restClient = restClientBuilder.baseUrl(baseUrl).build();
         this.objectMapper = objectMapper;
     }
 

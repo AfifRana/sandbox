@@ -67,3 +67,9 @@ management:
   health:
     circuitbreakers:
       enabled: true
+  tracing:
+    sampling:
+      probability: 1.0  # sample 100% for the demo; lower in production
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces

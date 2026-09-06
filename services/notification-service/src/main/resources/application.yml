@@ -12,3 +12,16 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+  tracing:
+    sampling:
+      probability: 1.0  # sample 100% for the demo; lower in production
+  otlp:
+    tracing:
+      endpoint: http://otel-collector:4318/v1/traces

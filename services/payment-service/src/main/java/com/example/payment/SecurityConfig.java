@@ -22,6 +22,8 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/actuator/health/**").permitAll()
+                    // Scraped by Prometheus over the internal Docker network.
+                    .requestMatchers("/actuator/prometheus").permitAll()
                     .requestMatchers("/api/v1/payments/**").hasRole("CUSTOMER")
                     .anyRequest().denyAll())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(rolesConverter())));

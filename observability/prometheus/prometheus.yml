@@ -1,0 +1,42 @@
+# Scrape configs for the order-processing-platform demo stack.
+# All targets are on the internal Docker network — metrics never traverse
+# the public gateway. In production these would be discovered via
+# Kubernetes annotations or a service registry instead of static entries.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: order-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['order-service:8080']
+
+  - job_name: product-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['product-service:8080']
+
+  - job_name: payment-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['payment-service:8080']
+
+  - job_name: notification-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['notification-service:8080']
+
+  - job_name: auth-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['auth-service:8080']
+
+  - job_name: api-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['api-gateway:8080']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

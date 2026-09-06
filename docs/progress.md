@@ -12,6 +12,7 @@ Track of what's done and what's next. Update as you go.
 | `orders-v0.4.0` | JWT/OAuth2 security: auth-service (RS256 + JWKS), API Gateway, resource servers, E2E verified (role matrix, defense in depth) |
 | `orders-v0.5.0` | Idempotent consumers: transactional inbox (order-service), Redis SETNX dedupe (notification-service), E2E verified (duplicate replay → single processing) |
 | `orders-v0.6.0` | Resilience4j retry + circuit breaker on catalog calls, authoritative pricing, fail-open/fail-closed, E2E verified (circuit OPEN → fail-fast → recovery) |
+| `orders-v0.7.0` | Observability: Prometheus metrics (all services), provisioned Grafana dashboard, Micrometer Tracing + OTel collector + Jaeger, E2E verified (7 targets up, 3-service trace) |
 
 Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`). E2E reproduction steps per milestone live in [docs/e2e/](e2e/README.md).
 
@@ -73,10 +74,16 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [x] Actuator: `/actuator/circuitbreakers` endpoint (ADMIN-only), circuit-breaker health indicator
 - [x] Tests: CreateOrderUseCaseTest (5), ProductCatalogClientCircuitBreakerTest (1) — 16/16 order-service green
 - [x] E2E verified: wrong client price overridden with 99.99; unknown product 400; outage fail-open 88.88; circuit OPEN with notPermittedCalls; recovery to CLOSED
+- [x] Observability: micrometer-registry-prometheus on all 6 services, `/actuator/prometheus` exposed (permitAll — internal Docker network scrape only)
+- [x] Prometheus: scrapes all 6 services + itself on the internal network (5s interval), UI on :9090
+- [x] Grafana: provisioned datasource + 8-panel dashboard (HTTP rate/p95, JVM heap, CB state + calls, Kafka lag, CPU, HikariCP), UI on :3000
+- [x] Tracing: Micrometer Tracing (OTel bridge) + OTLP exporter on all 6 services, 100% sampling
+- [x] OTel Collector (batch → Jaeger) + Jaeger UI on :16686
+- [x] Trace propagation fix: ProductCatalogClient now injects the auto-configured RestClient.Builder (raw builder is not instrumented — no traceparent header)
+- [x] E2E verified: 7/7 Prometheus targets up, CB state metric, POST 201 counters, Grafana panels live, single trace ID across api-gateway → order-service → product-service
 
 ## 🔜 Next up (priority order)
 
-- [ ] Observability: Micrometer + Prometheus + Grafana, OpenTelemetry tracing
 - [ ] Kubernetes: Helm chart, liveness/readiness probes, HPA (Minikube/kind)
 - [ ] k6/Gatling load test + SQL EXPLAIN PLAN before/after case study
 - [ ] PIT mutation testing run

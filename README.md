@@ -35,6 +35,10 @@ graph LR
 | payment-service | 8082 | Strategy-pattern payments, `payment.paid` events |
 | notification-service | 8083 | Consumes order events, notifies customers |
 
+Infrastructure: Oracle 23ai Free, Kafka (KRaft), Redis, plus observability —
+Prometheus (:9090), Grafana (:3000, admin/admin), Jaeger (:16686); the OTel
+collector is internal-only.
+
 ## Key design decisions
 
 - **Hexagonal architecture** (enforced by ArchUnit tests): domain has zero
@@ -56,6 +60,12 @@ graph LR
   public key via JWKS; the gateway validates at the edge and every service
   re-validates independently (defense in depth). Roles live in a custom
   `roles` claim mapped to `ROLE_*` authorities per service.
+- **Observability**: every service exposes Prometheus metrics (scraped on the
+  internal Docker network, never through the gateway) and ships OTLP traces
+  through an OpenTelemetry collector to Jaeger. Grafana is provisioned with
+  a RED/USE dashboard (HTTP rate/p95, JVM heap, circuit breaker state,
+  Kafka lag, HikariCP). Trace IDs appear in log lines for log↔trace
+  correlation.
 
 ## Quick start
 
@@ -114,7 +124,7 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 
 - [x] Idempotent consumers: transactional inbox + Redis SETNX dedupe
 - [x] Resilience4j circuit breaker + retry on catalog calls (fail-open on outage, fail-closed on unknown product)
-- [ ] Prometheus/Grafana + OpenTelemetry tracing
+- [x] Prometheus/Grafana + OpenTelemetry tracing
 - [ ] Kubernetes Helm chart with HPA
 - [ ] k6 load tests + SQL EXPLAIN PLAN case study
 

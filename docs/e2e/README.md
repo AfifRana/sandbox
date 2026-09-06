@@ -13,6 +13,7 @@ happens the older guide is removed and its content folded into the newest one.
 
 | Tag | Guide | Verified scope |
 |---|---|---|
+| `orders-v0.7.0` | [e2e-v0.7.0.md](e2e-v0.7.0.md) | Observability: Prometheus metrics, Grafana dashboard, OTel tracing → Jaeger |
 | `orders-v0.6.0` | [e2e-v0.6.0.md](e2e-v0.6.0.md) | Resilience4j retry + circuit breaker, authoritative pricing, fail-open/fail-closed |
 | `orders-v0.5.0` | [e2e-v0.5.0.md](e2e-v0.5.0.md) | Idempotent consumers: transactional inbox (order-service), Redis SETNX dedupe (notification-service) |
 | `orders-v0.4.0` | [e2e-v0.4.0.md](e2e-v0.4.0.md) | JWT/OAuth2 security, gateway, role matrix, defense in depth |
