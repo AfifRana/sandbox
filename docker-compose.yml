@@ -48,12 +48,15 @@ services:
         condition: service_started
       auth-service:
         condition: service_started
+      product-service:
+        condition: service_started
     environment:
       DB_URL: jdbc:oracle:thin:@oracle:1521/FREEPDB1
       DB_USER: orders
       DB_PASSWORD: orders
       KAFKA_BROKERS: kafka:29092
       AUTH_JWKS_URI: http://auth-service:8080/oauth2/jwks
+      CATALOG_BASE_URL: http://product-service:8080
     ports:
       - "8080:8080"
 

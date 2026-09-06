@@ -45,6 +45,11 @@ graph LR
   events in a transactional inbox (`processed_events`, claim + state change in
   one DB transaction); notification-service uses Redis SETNX with TTL and
   fails open on Redis outage.
+- **Resilience4j on inter-service calls**: order-service prices orders from
+  the catalog (client-supplied prices are not trusted), wrapped in retry +
+  circuit breaker. Unknown product fails closed (400); catalog outage fails
+  open (client price + WARN) — the policy lives in the use case, not the
+  HTTP client adapter.
 - **Oracle tuning**: indexed FKs, function-based partial index on the outbox,
   `NUMBER(12,2)` money columns, HikariCP pool sizing.
 - **OAuth2/JWT security**: auth-service issues RS256 tokens and publishes its
@@ -108,7 +113,7 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 ## Roadmap
 
 - [x] Idempotent consumers: transactional inbox + Redis SETNX dedupe
-- [ ] Resilience4j circuit breaker + retry
+- [x] Resilience4j circuit breaker + retry on catalog calls (fail-open on outage, fail-closed on unknown product)
 - [ ] Prometheus/Grafana + OpenTelemetry tracing
 - [ ] Kubernetes Helm chart with HPA
 - [ ] k6 load tests + SQL EXPLAIN PLAN case study

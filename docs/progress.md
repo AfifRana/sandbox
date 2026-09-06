@@ -11,6 +11,7 @@ Track of what's done and what's next. Update as you go.
 | `orders-v0.3.0` | payment-service with Strategy pattern + payment.paid event flow, E2E verified (order CREATED→PAID, idempotency, 402 decline) |
 | `orders-v0.4.0` | JWT/OAuth2 security: auth-service (RS256 + JWKS), API Gateway, resource servers, E2E verified (role matrix, defense in depth) |
 | `orders-v0.5.0` | Idempotent consumers: transactional inbox (order-service), Redis SETNX dedupe (notification-service), E2E verified (duplicate replay → single processing) |
+| `orders-v0.6.0` | Resilience4j retry + circuit breaker on catalog calls, authoritative pricing, fail-open/fail-closed, E2E verified (circuit OPEN → fail-fast → recovery) |
 
 Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`). E2E reproduction steps per milestone live in [docs/e2e/](e2e/README.md).
 
@@ -66,10 +67,15 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [x] PaymentEventListener: Jackson parsing of paymentId + orderId (was manual string indexOf)
 - [x] Tests: HandlePaymentPaidEventTest (2), NotificationDeduplicatorTest (3) — 15/15 order, 3/3 notification
 - [x] E2E verified: 3 duplicate payment.paid replays → 1 inbox row, order stays PAID; duplicate order.created → 1 notification, Redis key present
+- [x] Resilience4j: retry (3 attempts, 200ms) + circuit breaker (50% failure rate, 10-call window, min 5, 10s open wait) on order→product catalog calls
+- [x] Authoritative pricing: order-service fetches catalog price server-side, client-supplied unitPrice no longer trusted
+- [x] Fail-open on catalog outage (client price + WARN) vs fail-closed on unknown product (400) — policy lives in the use case, not the adapter
+- [x] Actuator: `/actuator/circuitbreakers` endpoint (ADMIN-only), circuit-breaker health indicator
+- [x] Tests: CreateOrderUseCaseTest (5), ProductCatalogClientCircuitBreakerTest (1) — 16/16 order-service green
+- [x] E2E verified: wrong client price overridden with 99.99; unknown product 400; outage fail-open 88.88; circuit OPEN with notPermittedCalls; recovery to CLOSED
 
 ## 🔜 Next up (priority order)
 
-- [ ] Resilience4j: circuit breaker + retry on inter-service calls
 - [ ] Observability: Micrometer + Prometheus + Grafana, OpenTelemetry tracing
 - [ ] Kubernetes: Helm chart, liveness/readiness probes, HPA (Minikube/kind)
 - [ ] k6/Gatling load test + SQL EXPLAIN PLAN before/after case study
@@ -82,6 +88,6 @@ Tags point at the branch tip when the milestone was verified and documented — 
 
 - [ ] Outbox pattern & dual-write problem — rehearse the story
 - [ ] SQL tuning story: slow query → EXPLAIN PLAN → index → measured gain
-- [ ] Circuit breaker behavior: trip conditions, fallbacks, half-open recovery
+- [ ] Circuit breaker behavior: trip conditions, fallbacks, half-open recovery — implemented in v0.6.0, rehearse the story
 - [ ] Virtual threads vs platform threads for I/O-heavy services
 - [x] At-least-once vs exactly-once delivery, idempotent consumer design — inbox + Redis SETNX implemented in v0.5.0

@@ -35,8 +35,35 @@ spring:
     virtual:
       enabled: true
 
+catalog:
+  base-url: ${CATALOG_BASE_URL:http://localhost:8081}
+
+resilience4j:
+  retry:
+    instances:
+      productCatalog:
+        max-attempts: 3
+        wait-duration: 200ms
+        retry-exceptions:
+          - com.example.order.application.port.ProductCatalog$CatalogUnavailableException
+  circuitbreaker:
+    instances:
+      productCatalog:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        minimum-number-of-calls: 5
+        record-exceptions:
+          - com.example.order.application.port.ProductCatalog$CatalogUnavailableException
+        ignore-exceptions:
+          - org.springframework.web.client.HttpClientErrorException.NotFound
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,circuitbreakers
+  health:
+    circuitbreakers:
+      enabled: true
