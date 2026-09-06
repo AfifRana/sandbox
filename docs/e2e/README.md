@@ -13,6 +13,7 @@ happens the older guide is removed and its content folded into the newest one.
 
 | Tag | Guide | Verified scope |
 |---|---|---|
+| `orders-v0.5.0` | [e2e-v0.5.0.md](e2e-v0.5.0.md) | Idempotent consumers: transactional inbox (order-service), Redis SETNX dedupe (notification-service) |
 | `orders-v0.4.0` | [e2e-v0.4.0.md](e2e-v0.4.0.md) | JWT/OAuth2 security, gateway, role matrix, defense in depth |
 | `orders-v0.3.0` | [e2e-v0.3.0.md](e2e-v0.3.0.md) | Payment Strategy pattern, idempotency, CREATED→PAID, Redis cache-aside |
 | `orders-v0.1.0` | [e2e-v0.1.0.md](e2e-v0.1.0.md) | Scaffold: REST → Oracle → outbox → Kafka → consumers |

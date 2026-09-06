@@ -41,7 +41,10 @@ graph LR
   framework dependencies; use cases depend only on ports.
 - **Transactional outbox**: order writes and event writes share one DB
   transaction; a relay publishes to Kafka — no dual-write inconsistency.
-- **At-least-once delivery + idempotent consumers**: consumers dedupe by orderId.
+- **At-least-once delivery + idempotent consumers**: order-service dedupes
+  events in a transactional inbox (`processed_events`, claim + state change in
+  one DB transaction); notification-service uses Redis SETNX with TTL and
+  fails open on Redis outage.
 - **Oracle tuning**: indexed FKs, function-based partial index on the outbox,
   `NUMBER(12,2)` money columns, HikariCP pool sizing.
 - **OAuth2/JWT security**: auth-service issues RS256 tokens and publishes its
@@ -104,7 +107,7 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 
 ## Roadmap
 
-- [ ] Idempotent consumers: Redis/db dedupe beyond status checks
+- [x] Idempotent consumers: transactional inbox + Redis SETNX dedupe
 - [ ] Resilience4j circuit breaker + retry
 - [ ] Prometheus/Grafana + OpenTelemetry tracing
 - [ ] Kubernetes Helm chart with HPA

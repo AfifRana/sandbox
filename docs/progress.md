@@ -10,6 +10,7 @@ Track of what's done and what's next. Update as you go.
 | `orders-v0.2.0` | product-service with Oracle persistence + Redis cache-aside, E2E verified (cache miss/hit, TTL, evict-on-write) |
 | `orders-v0.3.0` | payment-service with Strategy pattern + payment.paid event flow, E2E verified (order CREATED→PAID, idempotency, 402 decline) |
 | `orders-v0.4.0` | JWT/OAuth2 security: auth-service (RS256 + JWKS), API Gateway, resource servers, E2E verified (role matrix, defense in depth) |
+| `orders-v0.5.0` | Idempotent consumers: transactional inbox (order-service), Redis SETNX dedupe (notification-service), E2E verified (duplicate replay → single processing) |
 
 Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`). E2E reproduction steps per milestone live in [docs/e2e/](e2e/README.md).
 
@@ -60,10 +61,14 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [x] `roles` claim → ROLE_* authorities via JwtAuthenticationConverter in each service
 - [x] Security tests: @WebMvcTest slices with jwt() postprocessor — 401/403/pass matrix (9 tests)
 - [x] E2E verified: login → token → role matrix (401/403/201) → order → payment → PAID, all through the gateway on :9000
+- [x] Idempotent consumers: `processed_events` transactional inbox in order-service (claim + state change in one DB transaction)
+- [x] Idempotent consumers: Redis SETNX dedupe in notification-service (TTL 1 day, fail-open on Redis outage)
+- [x] PaymentEventListener: Jackson parsing of paymentId + orderId (was manual string indexOf)
+- [x] Tests: HandlePaymentPaidEventTest (2), NotificationDeduplicatorTest (3) — 15/15 order, 3/3 notification
+- [x] E2E verified: 3 duplicate payment.paid replays → 1 inbox row, order stays PAID; duplicate order.created → 1 notification, Redis key present
 
 ## 🔜 Next up (priority order)
 
-- [ ] Idempotent consumers: dedupe by orderId beyond status checks (Redis or DB table)
 - [ ] Resilience4j: circuit breaker + retry on inter-service calls
 - [ ] Observability: Micrometer + Prometheus + Grafana, OpenTelemetry tracing
 - [ ] Kubernetes: Helm chart, liveness/readiness probes, HPA (Minikube/kind)
@@ -79,4 +84,4 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [ ] SQL tuning story: slow query → EXPLAIN PLAN → index → measured gain
 - [ ] Circuit breaker behavior: trip conditions, fallbacks, half-open recovery
 - [ ] Virtual threads vs platform threads for I/O-heavy services
-- [ ] At-least-once vs exactly-once delivery, idempotent consumer design
+- [x] At-least-once vs exactly-once delivery, idempotent consumer design — inbox + Redis SETNX implemented in v0.5.0
