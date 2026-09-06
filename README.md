@@ -8,12 +8,19 @@ performance-tuned SQL, Kafka eventing, and full CI/CD.
 
 ```mermaid
 graph LR
-    Client --> ORD[order-service]
-    Client --> PROD[product-service]
+    Client --> GW[api-gateway :9000]
+    GW --> AUTH[auth-service]
+    AUTH -->|JWKS public key| GW
+    GW --> ORD[order-service]
+    GW --> PROD[product-service]
+    GW --> PAY[payment-service]
     ORD --> O[(Oracle DB)]
+    PROD --> O
     PROD --> R[(Redis cache)]
-    ORD --> K[(Kafka: order-events)]
-    K --> PAY[payment-service]
+    PAY --> O
+    ORD -->|outbox| K[(Kafka)]
+    PAY -->|outbox| K
+    K --> ORD
     K --> NOTIF[notification-service]
 ```
 
@@ -21,9 +28,11 @@ graph LR
 
 | Service | Port | Responsibility |
 |---|---|---|
+| api-gateway | 9000 | Spring Cloud Gateway: edge JWT validation, routing, CORS |
+| auth-service | 8084 | RS256 JWT issuing, JWKS endpoint, demo users |
 | order-service | 8080 | Order lifecycle, Oracle persistence, outbox → Kafka |
-| product-service | 8081 | Product catalog, Redis caching |
-| payment-service | 8082 | Consumes order events, processes payments |
+| product-service | 8081 | Product catalog, Redis cache-aside |
+| payment-service | 8082 | Strategy-pattern payments, `payment.paid` events |
 | notification-service | 8083 | Consumes order events, notifies customers |
 
 ## Key design decisions
@@ -35,6 +44,10 @@ graph LR
 - **At-least-once delivery + idempotent consumers**: consumers dedupe by orderId.
 - **Oracle tuning**: indexed FKs, function-based partial index on the outbox,
   `NUMBER(12,2)` money columns, HikariCP pool sizing.
+- **OAuth2/JWT security**: auth-service issues RS256 tokens and publishes its
+  public key via JWKS; the gateway validates at the edge and every service
+  re-validates independently (defense in depth). Roles live in a custom
+  `roles` claim mapped to `ROLE_*` authorities per service.
 
 ## Quick start
 
@@ -42,10 +55,15 @@ graph LR
 docker compose up --build
 ```
 
-Then create an order:
+Then log in and create an order through the gateway:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/orders \
+TOKEN=$(curl -s -X POST http://localhost:9000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"alice","password":"password"}' | sed 's/.*"accessToken":"\([^"]*\)".*/\1/')
+
+curl -X POST http://localhost:9000/api/v1/orders \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "customerId": "11111111-1111-1111-1111-111111111111",
@@ -54,6 +72,11 @@ curl -X POST http://localhost:8080/api/v1/orders \
     ]
   }'
 ```
+
+Demo users (password `password`): `alice` = CUSTOMER, `bob` = ADMIN,
+`carol` = both.
+
+Full walkthroughs per milestone: [docs/e2e/](docs/e2e/README.md)
 
 ## Development
 
@@ -81,14 +104,16 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 
 ## Roadmap
 
-- [ ] Payment processing with Strategy pattern (card, wallet, bank transfer)
-- [ ] API Gateway + JWT auth
+- [ ] Idempotent consumers: Redis/db dedupe beyond status checks
+- [ ] Resilience4j circuit breaker + retry
 - [ ] Prometheus/Grafana + OpenTelemetry tracing
 - [ ] Kubernetes Helm chart with HPA
 - [ ] k6 load tests + SQL EXPLAIN PLAN case study
 
 ## Known limitations
 
-- Product catalog is in-memory placeholder (Oracle + Redis cache pending)
-- Kafka consumer handlers are stubs pending payment/notification logic
-- No auth yet — planned as OAuth2 resource servers
+- Auth is a demo issuer: in-memory users, RSA keypair regenerated on restart
+  (tokens don't survive an auth-service restart); no refresh tokens
+- No per-customer authorization on order reads (any authenticated
+  CUSTOMER/ADMIN can read any order by id)
+- Notification consumer logs instead of sending real notifications
