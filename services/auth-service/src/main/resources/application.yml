@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: auth-service
+
+server:
+  port: 8080
+
+app:
+  auth:
+    # Demo-only: generated key pair. Real deployments load keys from a
+    # KMS/vault and rotate them; JWKS supports rotation via kid header.
+    issuer: ${AUTH_ISSUER:http://localhost:8084}
+    access-token-ttl: ${AUTH_TOKEN_TTL:PT1H}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

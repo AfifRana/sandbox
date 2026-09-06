@@ -8,14 +8,14 @@ COPY services/payment-service/pom.xml services/payment-service/
 COPY services/notification-service/pom.xml services/notification-service/
 COPY services/auth-service/pom.xml services/auth-service/
 COPY services/api-gateway/pom.xml services/api-gateway/
-RUN mvn -q -pl services/notification-service -am dependency:go-offline
-COPY services/notification-service services/notification-service
-RUN mvn -q -pl services/notification-service -am package -DskipTests
+RUN mvn -q -pl services/auth-service -am dependency:go-offline
+COPY services/auth-service services/auth-service
+RUN mvn -q -pl services/auth-service -am package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 RUN addgroup --system app && adduser --system app --ingroup app
 USER app
-COPY --from=build /workspace/services/notification-service/target/*.jar app.jar
+COPY --from=build /workspace/services/auth-service/target/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]

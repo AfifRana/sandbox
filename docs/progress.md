@@ -9,6 +9,7 @@ Track of what's done and what's next. Update as you go.
 | `orders-v0.1.0` | Microservices scaffold, E2E verified: REST → Oracle → outbox → Kafka → consumers |
 | `orders-v0.2.0` | product-service with Oracle persistence + Redis cache-aside, E2E verified (cache miss/hit, TTL, evict-on-write) |
 | `orders-v0.3.0` | payment-service with Strategy pattern + payment.paid event flow, E2E verified (order CREATED→PAID, idempotency, 402 decline) |
+| `orders-v0.4.0` | JWT/OAuth2 security: auth-service (RS256 + JWKS), API Gateway, resource servers, E2E verified (role matrix, defense in depth) |
 
 Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`).
 
@@ -50,11 +51,19 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [x] Build verified: `mvn verify` → BUILD SUCCESS, 4/4 tests green
 - [x] docker-compose: named volume for Oracle data
 - [x] End-to-end verified via `docker compose up`: REST → Oracle → outbox → Kafka → payment & notification consumers
+- [x] auth-service: RS256 JWT issuing (Nimbus JOSE), custom `roles` claim, unique `jti`, 1h TTL
+- [x] auth-service: JWKS endpoint (`GET /oauth2/jwks`) — public key only, private key never leaves the service
+- [x] auth-service: demo users (alice/CUSTOMER, bob/ADMIN, carol/both), bad creds → 401 RFC 7807
+- [x] api-gateway: Spring Cloud Gateway routes (auth, orders, products, payments), edge JWT validation, CORS
+- [x] Resource servers: order/product/payment validate JWTs independently (defense in depth — bypassing the gateway still 401s)
+- [x] Role rules: order POST=CUSTOMER, order read=CUSTOMER/ADMIN, product GET=public, product writes=ADMIN, payments=CUSTOMER only
+- [x] `roles` claim → ROLE_* authorities via JwtAuthenticationConverter in each service
+- [x] Security tests: @WebMvcTest slices with jwt() postprocessor — 401/403/pass matrix (9 tests)
+- [x] E2E verified: login → token → role matrix (401/403/201) → order → payment → PAID, all through the gateway on :9000
 
 ## 🔜 Next up (priority order)
 
 - [ ] Idempotent consumers: dedupe by orderId beyond status checks (Redis or DB table)
-- [ ] API Gateway + JWT/OAuth2 resource servers
 - [ ] Resilience4j: circuit breaker + retry on inter-service calls
 - [ ] Observability: Micrometer + Prometheus + Grafana, OpenTelemetry tracing
 - [ ] Kubernetes: Helm chart, liveness/readiness probes, HPA (Minikube/kind)

@@ -6,6 +6,8 @@ COPY services/order-service/pom.xml services/order-service/
 COPY services/product-service/pom.xml services/product-service/
 COPY services/payment-service/pom.xml services/payment-service/
 COPY services/notification-service/pom.xml services/notification-service/
+COPY services/auth-service/pom.xml services/auth-service/
+COPY services/api-gateway/pom.xml services/api-gateway/
 RUN mvn -q -pl services/order-service -am dependency:go-offline
 COPY services/order-service services/order-service
 RUN mvn -q -pl services/order-service -am package -DskipTests
