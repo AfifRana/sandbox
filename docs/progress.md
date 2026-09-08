@@ -85,6 +85,13 @@ Tags point at the branch tip when the milestone was verified and documented — 
 ## 🔜 Next up (priority order)
 
 - [ ] Kubernetes: Helm chart, liveness/readiness probes, HPA (Minikube/kind)
+  — **chart written** (`deploy/helm/order-platform/`), `helm lint`/`helm template`
+  clean, but **not yet deployed**: Docker Desktop's Kubernetes failed to
+  bootstrap on the authoring device (control-plane never answered, no
+  auto-retry; a disable/re-enable cycle didn't fix it either). Picking this
+  up on a new device — see [deploy/helm/order-platform/README.md](../deploy/helm/order-platform/README.md#resume--first-deploy-on-a-fresh-device)
+  "Resume / first deploy" for exact steps. Do not tag `orders-v0.8.0` until
+  an E2E order-creation run through the chart's NodePorts succeeds.
 - [ ] k6/Gatling load test + SQL EXPLAIN PLAN before/after case study
 - [ ] PIT mutation testing run
 - [ ] ADRs (why Kafka over RabbitMQ, why outbox pattern)

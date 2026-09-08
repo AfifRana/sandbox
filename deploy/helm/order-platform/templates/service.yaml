@@ -1,0 +1,142 @@
+{{- /*
+  Generic Deployment + Service for the Spring Boot services.
+  Each service is homogeneous: container port 8080, /actuator/health probes,
+  Prometheus scrape, resource requests/limits. Service-specific wiring
+  (datasource, Kafka, inter-service URLs) arrives via env vars.
+*/ -}}
+{{- $root := . -}}
+{{- $svcMap := dict
+  "order"        (dict "port" 8080)
+  "product"      (dict "port" 8080)
+  "payment"      (dict "port" 8080)
+  "notification" (dict "port" 8080)
+  "auth"         (dict "port" 8080)
+  "gateway"      (dict "port" 8080)
+-}}
+{{- range $key, $svc := .Values.services }}
+{{- $cfg := index $svcMap $key }}
+{{- $fullName := printf "%s-%s" (include "order-platform.fullname" $root) $key }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  namespace: {{ $root.Values.global.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $svc.name }}
+    app.kubernetes.io/part-of: order-platform
+spec:
+  {{- if and (eq $key "order") $root.Values.hpa.enabled }}
+  {{- /* HPA owns the replica count for order-service when enabled */}}
+  {{- else }}
+  replicas: {{ $svc.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $svc.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ $svc.name }}
+        app.kubernetes.io/part-of: order-platform
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      serviceAccountName: {{ $root.Values.serviceAccount.name }}
+      containers:
+        - name: {{ $svc.name }}
+          image: order-processing-platform-{{ $svc.name }}:latest
+          imagePullPolicy: {{ $root.Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $cfg.port }}
+          # Readiness gates traffic (pod not added to Service endpoints until
+          # the app is truly up); liveness restarts a wedged container.
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: {{ $root.Values.resources.requests.cpu }}
+              memory: {{ $root.Values.resources.requests.memory }}
+            limits:
+              cpu: {{ $root.Values.resources.limits.cpu }}
+              memory: {{ $root.Values.resources.limits.memory }}
+          env:
+            {{- if ne $key "gateway" }}
+            - name: AUTH_JWKS_URI
+              value: http://{{ include "order-platform.fullname" $root }}-auth:8080/oauth2/jwks
+            {{- end }}
+            {{- if has $key (list "order" "product" "payment") }}
+            - name: DB_URL
+              value: jdbc:oracle:thin:@{{ $root.Values.infra.oracleHost }}:{{ $root.Values.infra.oraclePort }}/FREEPDB1
+            - name: DB_USER
+              value: {{ $root.Values.infra.dbUser }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "order-platform.fullname" $root }}-db
+                  key: password
+            {{- end }}
+            {{- if has $key (list "order" "payment" "notification") }}
+            - name: KAFKA_BROKERS
+              value: {{ $root.Values.infra.kafkaBrokers }}
+            {{- end }}
+            {{- if has $key (list "product" "notification") }}
+            - name: REDIS_HOST
+              value: {{ $root.Values.infra.redisHost }}
+            - name: REDIS_PORT
+              value: {{ $root.Values.infra.redisPort | quote }}
+            {{- end }}
+            {{- if eq $key "order" }}
+            - name: CATALOG_BASE_URL
+              value: http://{{ include "order-platform.fullname" $root }}-product:8080
+            {{- end }}
+            {{- if eq $key "auth" }}
+            - name: AUTH_ISSUER
+              value: http://{{ include "order-platform.fullname" $root }}-auth:8080
+            {{- end }}
+            {{- if eq $key "gateway" }}
+            - name: AUTH_JWKS_URI
+              value: http://{{ include "order-platform.fullname" $root }}-auth:8080/oauth2/jwks
+            - name: AUTH_SERVICE_URI
+              value: http://{{ include "order-platform.fullname" $root }}-auth:8080
+            - name: ORDER_SERVICE_URI
+              value: http://{{ include "order-platform.fullname" $root }}-order:8080
+            - name: PRODUCT_SERVICE_URI
+              value: http://{{ include "order-platform.fullname" $root }}-product:8080
+            - name: PAYMENT_SERVICE_URI
+              value: http://{{ include "order-platform.fullname" $root }}-payment:8080
+            {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  namespace: {{ $root.Values.global.namespace }}
+  labels:
+    app.kubernetes.io/name: {{ $svc.name }}
+    app.kubernetes.io/part-of: order-platform
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: {{ $svc.name }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      nodePort: {{ $svc.nodePort }}
+{{- end }}

@@ -1,0 +1,67 @@
+# Default values for the order-platform chart.
+# Deploy target: Docker Desktop's single-node Kubernetes (images are built
+# locally with `docker compose build` and are visible to the cluster without
+# a registry push).
+
+global:
+  namespace: order-platform
+
+imagePullPolicy: Never   # images come from the local Docker daemon
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 768Mi
+
+# Infra (Oracle, Kafka, Redis, observability) is expected to already be
+# running via docker compose on the host. Services reach it through
+# docker.for.mac.localhost / docker.for.win.localhost style host aliases —
+# for Docker Desktop K8s the node's gateway alias `host.docker.internal`
+# resolves from inside the cluster.
+infra:
+  oracleHost: host.docker.internal
+  oraclePort: 1521
+  dbUser: orders
+  dbPassword: orders
+  kafkaBrokers: host.docker.internal:9092
+  redisHost: host.docker.internal
+  redisPort: 6379
+
+services:
+  order:
+    name: order-service
+    replicaCount: 2
+    nodePort: 30080
+  product:
+    name: product-service
+    replicaCount: 1
+    nodePort: 30081
+  payment:
+    name: payment-service
+    replicaCount: 1
+    nodePort: 30082
+  notification:
+    name: notification-service
+    replicaCount: 1
+    nodePort: 30083
+  auth:
+    name: auth-service
+    replicaCount: 1
+    nodePort: 30084
+  gateway:
+    name: api-gateway
+    replicaCount: 1
+    nodePort: 30000
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 60
+
+serviceAccount:
+  create: true
+  name: order-platform-sa

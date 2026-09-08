@@ -96,6 +96,15 @@ Demo users (password `password`): `alice` = CUSTOMER, `bob` = ADMIN,
 
 Full walkthroughs per milestone: [docs/e2e/](docs/e2e/README.md)
 
+## Documentation map
+
+| Doc | What it covers |
+|---|---|
+| [docs/e2e/README.md](docs/e2e/README.md) | Index of per-milestone E2E reproduction guides (curl, pre/post-conditions, gotchas) |
+| [docs/progress.md](docs/progress.md) | Milestone tracker: done items, release tags, backlog |
+| [deploy/helm/order-platform/README.md](deploy/helm/order-platform/README.md) | Kubernetes deployment: prerequisites, Helm install, probes/HPA design decisions |
+| [docs/notes.md](docs/notes.md) | Strategy notes & job-requirement mapping |
+
 ## Development
 
 ```bash
@@ -104,7 +113,10 @@ mvn verify          # build + unit tests + JaCoCo coverage
 
 ## Cleanup / removal
 
-Everything runs inside Docker — nothing is installed on the host.
+Everything runs inside Docker — nothing is installed on the host for the
+compose stack. (The Kubernetes deployment adds `helm` via winget — see the
+[prerequisites table](deploy/helm/order-platform/README.md) for what goes
+where and how to remove it.)
 
 ```bash
 docker compose down                        # remove containers + network (keeps images, volumes)
