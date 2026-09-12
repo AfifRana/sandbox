@@ -52,20 +52,28 @@ spec:
           ports:
             - name: http
               containerPort: {{ $cfg.port }}
+          # Startup probe gates liveness/readiness until the JVM finishes
+          # booting (Spring + Flyway can take >70s under a 500m CPU limit,
+          # which exceeded the old liveness budget and caused kill loops).
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
           # Readiness gates traffic (pod not added to Service endpoints until
           # the app is truly up); liveness restarts a wedged container.
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: http
-            initialDelaySeconds: 20
             periodSeconds: 5
             failureThreshold: 6
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: http
-            initialDelaySeconds: 40
+            initialDelaySeconds: 20
             periodSeconds: 10
             failureThreshold: 3
           resources:
@@ -76,6 +84,11 @@ spec:
               cpu: {{ $root.Values.resources.limits.cpu }}
               memory: {{ $root.Values.resources.limits.memory }}
           env:
+            # Traces ship to the compose-hosted OTLP collector; the default
+            # in-cluster name (otel-collector) does not resolve from pods.
+            # Relaxed-binding form of management.otlp.tracing.endpoint.
+            - name: MANAGEMENT_OTLP_TRACING_ENDPOINT
+              value: http://{{ $root.Values.infra.otelCollectorHost }}:{{ $root.Values.infra.otelCollectorPort }}/v1/traces
             {{- if ne $key "gateway" }}
             - name: AUTH_JWKS_URI
               value: http://{{ include "order-platform.fullname" $root }}-auth:8080/oauth2/jwks

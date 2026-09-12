@@ -13,6 +13,7 @@ Track of what's done and what's next. Update as you go.
 | `orders-v0.5.0` | Idempotent consumers: transactional inbox (order-service), Redis SETNX dedupe (notification-service), E2E verified (duplicate replay → single processing) |
 | `orders-v0.6.0` | Resilience4j retry + circuit breaker on catalog calls, authoritative pricing, fail-open/fail-closed, E2E verified (circuit OPEN → fail-fast → recovery) |
 | `orders-v0.7.0` | Observability: Prometheus metrics (all services), provisioned Grafana dashboard, Micrometer Tracing + OTel collector + Jaeger, E2E verified (7 targets up, 3-service trace) |
+| `orders-v0.8.0` | Kubernetes: minikube + Helm deploy of all 6 services, probes, HPA, E2E verified (CREATED→PAID through the cluster, Prometheus 7/7, Jaeger traces) |
 
 Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`). E2E reproduction steps per milestone live in [docs/e2e/](e2e/README.md).
 
@@ -81,17 +82,15 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [x] OTel Collector (batch → Jaeger) + Jaeger UI on :16686
 - [x] Trace propagation fix: ProductCatalogClient now injects the auto-configured RestClient.Builder (raw builder is not instrumented — no traceparent header)
 - [x] E2E verified: 7/7 Prometheus targets up, CB state metric, POST 201 counters, Grafana panels live, single trace ID across api-gateway → order-service → product-service
+- [x] Kubernetes: Helm chart for all 6 services (Deployment + NodePort Service per service, Secret, namespace), startup/liveness/readiness probes, resource requests/limits
+- [x] HPA on order-service (CPU, min 2 / max 3 @ 70% — capped for the 8GB minikube node)
+- [x] minikube deployment: `minikube image load` for local images, metrics-server addon, infra reachable from pods via `host.minikube.internal`
+- [x] Kafka advertised-listener fix: `KAFKA_EXTERNAL_ADVERTISED_HOST` env var in compose so pod clients get a reachable broker address
+- [x] Prometheus `prometheus-k8s.yml` scrapes cluster NodePorts; compose prometheus joins the `minikube` docker network
+- [x] E2E verified: login → order (CREATED, authoritative price) → payment (COMPLETED) → order PAID via Kafka, all through `kubectl port-forward` to the in-cluster gateway; HPA live metrics; notification consumer logged the order event
 
 ## 🔜 Next up (priority order)
 
-- [ ] Kubernetes: Helm chart, liveness/readiness probes, HPA (Minikube/kind)
-  — **chart written** (`deploy/helm/order-platform/`), `helm lint`/`helm template`
-  clean, but **not yet deployed**: Docker Desktop's Kubernetes failed to
-  bootstrap on the authoring device (control-plane never answered, no
-  auto-retry; a disable/re-enable cycle didn't fix it either). Picking this
-  up on a new device — see [deploy/helm/order-platform/README.md](../deploy/helm/order-platform/README.md#resume--first-deploy-on-a-fresh-device)
-  "Resume / first deploy" for exact steps. Do not tag `orders-v0.8.0` until
-  an E2E order-creation run through the chart's NodePorts succeeds.
 - [ ] k6/Gatling load test + SQL EXPLAIN PLAN before/after case study
 - [ ] PIT mutation testing run
 - [ ] ADRs (why Kafka over RabbitMQ, why outbox pattern)

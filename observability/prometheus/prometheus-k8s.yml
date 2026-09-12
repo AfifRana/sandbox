@@ -1,0 +1,56 @@
+# Scrape config for the Kubernetes deployment mode (minikube, docker driver).
+#
+# In this mode the Spring services run inside the minikube cluster as NodePort
+# services (demo-<name>, namespace order-platform), while Prometheus itself
+# stays on the Docker Compose infra stack outside the cluster. The compose
+# service-name targets no longer resolve; instead we scrape the minikube
+# node's NodePorts, which are reachable from the compose containers once the
+# prometheus service joins the external `minikube` Docker network (see the
+# networks section of the prometheus service in docker-compose.yml).
+#
+# NodePorts (deploy/helm/order-platform/values.yaml):
+#   gateway 30000, order 30080, product 30081, payment 30082,
+#   notification 30083, auth 30084.
+#
+# The node IP is fixed at 192.168.49.2 for minikube's docker driver on the
+# default minikube network; adjust it if your node IP differs
+# (`minikube ip`). In production, discovery would use kubernetes_sd_configs
+# with pod annotations instead of static entries.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: order-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30080']
+
+  - job_name: product-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30081']
+
+  - job_name: payment-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30082']
+
+  - job_name: notification-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30083']
+
+  - job_name: auth-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30084']
+
+  - job_name: api-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30000']
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']

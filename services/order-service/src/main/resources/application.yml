@@ -20,6 +20,10 @@ spring:
   flyway:
     enabled: true
     table: order_flyway_history
+    # Schema is shared with product/payment services; baseline existing objects
+    # so this service's history table can be created and V1 applied.
+    baseline-on-migrate: true
+    baseline-version: 0
   kafka:
     bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
     producer:

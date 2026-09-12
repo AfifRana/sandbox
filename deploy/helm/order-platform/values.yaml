@@ -1,12 +1,12 @@
 # Default values for the order-platform chart.
-# Deploy target: Docker Desktop's single-node Kubernetes (images are built
-# locally with `docker compose build` and are visible to the cluster without
-# a registry push).
+# Deploy target: minikube (docker driver). Images are built locally with
+# `docker compose build` and loaded into the cluster with
+# `minikube image load <image>` — no registry push needed.
 
 global:
   namespace: order-platform
 
-imagePullPolicy: Never   # images come from the local Docker daemon
+imagePullPolicy: Never   # images come from the minikube image store
 
 resources:
   requests:
@@ -17,18 +17,22 @@ resources:
     memory: 768Mi
 
 # Infra (Oracle, Kafka, Redis, observability) is expected to already be
-# running via docker compose on the host. Services reach it through
-# docker.for.mac.localhost / docker.for.win.localhost style host aliases —
-# for Docker Desktop K8s the node's gateway alias `host.docker.internal`
-# resolves from inside the cluster.
+# running via docker compose on the host. Pods reach it through
+# host.minikube.internal, the alias minikube's docker driver provides for
+# the host (and thus the compose containers' published ports).
 infra:
-  oracleHost: host.docker.internal
+  oracleHost: host.minikube.internal
   oraclePort: 1521
   dbUser: orders
   dbPassword: orders
-  kafkaBrokers: host.docker.internal:9092
-  redisHost: host.docker.internal
+  kafkaBrokers: host.minikube.internal:9092
+  redisHost: host.minikube.internal
   redisPort: 6379
+  # OTLP/HTTP trace endpoint (compose-hosted otel-collector). Overrides the
+  # in-cluster `otel-collector` default baked into each service's
+  # application.yml via MANAGEMENT_OTLP_TRACING_ENDPOINT.
+  otelCollectorHost: host.minikube.internal
+  otelCollectorPort: 4318
 
 services:
   order:
@@ -59,8 +63,10 @@ services:
 hpa:
   enabled: true
   minReplicas: 2
-  maxReplicas: 5
-  targetCPUUtilizationPercentage: 60
+  # 8GB WSL node: 5 JVMs booting simultaneously starve the node (probes fail, crash loop).
+  # Cap at 3 replicas and raise the target so JVM boot spikes don't trigger runaway scaling.
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
 
 serviceAccount:
   create: true

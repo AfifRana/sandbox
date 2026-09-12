@@ -26,7 +26,12 @@ services:
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
       KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093,EXTERNAL://:9092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9092
+      # Kafka tells clients where to reconnect after bootstrap. Compose-based
+      # services use localhost; Kubernetes pods (minikube) need the host
+      # alias that reaches this container, so the K8s flow runs with
+      # KAFKA_EXTERNAL_ADVERTISED_HOST=host.minikube.internal (see
+      # deploy/helm/order-platform/README.md).
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://${KAFKA_EXTERNAL_ADVERTISED_HOST:-localhost}:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -41,6 +46,19 @@ services:
     image: prom/prometheus:v2.54.1
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # K8s-mode scrape config: swap in with
+      #   PROMETHEUS_CONFIG=prometheus-k8s.yml docker compose up -d prometheus
+      # (targets the kind node's NodePorts instead of compose service names).
+      - ./observability/prometheus/prometheus-k8s.yml:/etc/prometheus/prometheus-k8s.yml:ro
+    command:
+      - --config.file=/etc/prometheus/${PROMETHEUS_CONFIG:-prometheus.yml}
+    # K8s mode: also join the `minikube` network so the NodePort targets in
+    # prometheus-k8s.yml (node 192.168.49.2) are reachable. Compose networks
+    # are only attached when the file lists them, so this must stay here
+    # rather than being done via `docker network connect` after the fact.
+    networks:
+      - default
+      - minikube
     ports:
       - "9090:9090"
 
@@ -166,6 +184,14 @@ services:
       PAYMENT_SERVICE_URI: http://payment-service:8080
     ports:
       - "9000:8080"
+
+# External network created by minikube's docker driver; the minikube node
+# (192.168.49.2) lives here. Marked external so `docker compose up` never
+# tries to create or remove it. Only needed by prometheus in K8s mode — see
+# the prometheus service above.
+networks:
+  minikube:
+    external: true
 
 volumes:
   oracle-data:
