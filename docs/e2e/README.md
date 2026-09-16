@@ -13,6 +13,7 @@ happens the older guide is removed and its content folded into the newest one.
 
 | Tag | Guide | Verified scope |
 |---|---|---|
+| `orders-v0.9.0` | [e2e-v0.9.0.md](e2e-v0.9.0.md) | k6 query workload + Oracle EXPLAIN PLAN before/after composite-index migration |
 | `orders-v0.8.0` | [e2e-v0.8.0.md](e2e-v0.8.0.md) | Kubernetes: minikube + Helm deploy, probes, HPA, full lifecycle through the cluster |
 | `orders-v0.7.0` | [e2e-v0.7.0.md](e2e-v0.7.0.md) | Observability: Prometheus metrics, Grafana dashboard, OTel tracing → Jaeger |
 | `orders-v0.6.0` | [e2e-v0.6.0.md](e2e-v0.6.0.md) | Resilience4j retry + circuit breaker, authoritative pricing, fail-open/fail-closed |

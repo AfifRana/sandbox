@@ -138,7 +138,7 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 - [x] Resilience4j circuit breaker + retry on catalog calls (fail-open on outage, fail-closed on unknown product)
 - [x] Prometheus/Grafana + OpenTelemetry tracing
 - [x] Kubernetes Helm chart with HPA — deployed to minikube, E2E verified ([guide](docs/e2e/e2e-v0.8.0.md))
-- [ ] k6 load tests + SQL EXPLAIN PLAN case study
+- [x] k6 load tests + SQL EXPLAIN PLAN case study ([guide](docs/e2e/e2e-v0.9.0.md))
 
 ## Known limitations
 
