@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -47,6 +48,13 @@ public class OrderController {
         return getOrder.getById(id)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Order>> listByCustomer(
+            @RequestParam UUID customerId,
+            @RequestParam(defaultValue = "20") @Positive int limit) {
+        return ResponseEntity.ok(getOrder.getRecentByCustomer(customerId, limit));
     }
 
     public record CreateOrderRequest(
