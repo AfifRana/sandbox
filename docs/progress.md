@@ -15,7 +15,7 @@ Track of what's done and what's next. Update as you go.
 | `orders-v0.7.0` | Observability: Prometheus metrics (all services), provisioned Grafana dashboard, Micrometer Tracing + OTel collector + Jaeger, E2E verified (7 targets up, 3-service trace) |
 | `orders-v0.8.0` | Kubernetes: minikube + Helm deploy of all 6 services, probes, HPA, E2E verified (CREATED→PAID through the cluster, Prometheus 7/7, Jaeger traces) |
 | `orders-v0.9.0` | Customer order-list endpoint, k6 workload, Oracle EXPLAIN PLAN before/after composite-index migration, E2E verified with captured measurements |
-| `orders-v0.10.0` | PIT mutation testing for order-service and payment-service application/domain logic, 100% mutation score, E2E verified |
+| `orders-v0.10.0` | PIT mutation testing for order-service, payment-service, and product-service application/domain logic, 100% mutation score, E2E verified |
 
 Tags point at the branch tip when the milestone was verified and documented — `git checkout <tag>` shows a progress.md with that milestone marked complete. Use `git show <tag>` to see a tag's commit. Tags are local until pushed (`git push origin orders-v0.2.0`). E2E reproduction steps per milestone live in [docs/e2e/](e2e/README.md).
 
@@ -91,7 +91,7 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [x] Prometheus `prometheus-k8s.yml` scrapes cluster NodePorts; compose prometheus joins the `minikube` docker network
 - [x] E2E verified: login → order (CREATED, authoritative price) → payment (COMPLETED) → order PAID via Kafka, all through `kubectl port-forward` to the in-cluster gateway; HPA live metrics; notification consumer logged the order event
 - [x] v0.9.0 performance case study: customer order-list endpoint, reproducible Oracle seed data, k6 p95/p99 measurements, and EXPLAIN PLAN artifacts before/after V3
-- [x] PIT mutation testing: order-service 13/13 and payment-service 17/17 mutations killed, 100% score, no survived or no-coverage mutants
+- [x] PIT mutation testing: order-service 13/13, payment-service 17/17, and product-service 6/6 mutations killed, 100% score, no survived or no-coverage mutants
 
 ## 🔜 Next up (priority order)
 
