@@ -48,8 +48,6 @@ The HTML report is generated at
 
 The verified run used PIT 1.17.4 with the JUnit 5 plugin 1.2.1:
 
-| Metric | Result |
-|---|---:|
 | Service | Mutated scope | Generated | Killed | Score | No coverage | Survived |
 |---|---|---:|---:|---:|---:|---:|
 | order-service | `com.example.order.application.*`, `com.example.order.domain.*` | 13 | 13 | 100% | 0 | 0 |
