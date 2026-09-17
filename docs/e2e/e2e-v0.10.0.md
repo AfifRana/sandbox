@@ -41,11 +41,11 @@ The verified run used PIT 1.17.4 with the JUnit 5 plugin 1.2.1:
 |---|---:|
 | Mutated scope | `com.example.order.application.*`, `com.example.order.domain.*` |
 | Mutations generated | 13 |
-| Mutations killed | 11 |
-| Mutation score | 85% |
-| Mutated-class line coverage | 90% |
+| Mutations killed | 13 |
+| Mutation score | 100% |
+| Mutated-class line coverage | 98% |
 | Test strength | 100% |
-| No-coverage mutations | 2 |
+| No-coverage mutations | 0 |
 | Survived mutations | 0 |
 
 ## Post-conditions
@@ -59,8 +59,7 @@ The verified run used PIT 1.17.4 with the JUnit 5 plugin 1.2.1:
 - PIT is intentionally limited to application and domain logic. Including all
   Spring adapters and infrastructure classes makes the score mostly measure
   missing integration-test coverage rather than the unit-test contract.
-- The two no-coverage mutations are recorded rather than hidden by lowering
-  the threshold.
+- Every generated mutation is now covered and killed by the test suite.
 - The HTML report is under `target/`, so it is a local build artifact and is
   not committed.
 
