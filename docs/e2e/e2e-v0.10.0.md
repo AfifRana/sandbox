@@ -1,14 +1,15 @@
 # E2E — orders-v0.10.0: PIT Mutation Testing
 
-Reproduces the mutation-testing milestone for order-service. PIT mutates the
-application and domain logic, runs the existing JUnit 5 suite, and reports
-whether the tests detect each behavior change.
+Reproduces the mutation-testing milestone for order-service and
+payment-service. PIT mutates application and domain logic, runs each service's
+JUnit 5 suite, and reports whether the tests detect each behavior change.
 
 ## Pre-conditions
 
 - Java 21 and Maven are installed.
 - Run from the repository root.
-- `mvn -pl services/order-service test` passes before running PIT.
+- `mvn -pl services/order-service test` and
+  `mvn -pl services/payment-service test` pass before running PIT.
 
 ## Steps
 
@@ -16,7 +17,9 @@ whether the tests detect each behavior change.
 
 ```powershell
 mvn -pl services/order-service test
-# expect: BUILD SUCCESS; 16 tests, 0 failures
+# expect: BUILD SUCCESS; 18 tests, 0 failures
+mvn -pl services/payment-service test
+# expect: BUILD SUCCESS; 15 tests, 0 failures
 ```
 
 ### 2. Run PIT
@@ -27,7 +30,9 @@ run mutation analysis.
 
 ```powershell
 mvn -pl services/order-service org.pitest:pitest-maven:mutationCoverage
-# expect: BUILD SUCCESS; mutation score is at least 70%
+# expect: BUILD SUCCESS; 13/13 mutations killed
+mvn -pl services/payment-service org.pitest:pitest-maven:mutationCoverage
+# expect: BUILD SUCCESS; 17/17 mutations killed
 ```
 
 The HTML report is generated at
@@ -39,19 +44,15 @@ The verified run used PIT 1.17.4 with the JUnit 5 plugin 1.2.1:
 
 | Metric | Result |
 |---|---:|
-| Mutated scope | `com.example.order.application.*`, `com.example.order.domain.*` |
-| Mutations generated | 13 |
-| Mutations killed | 13 |
-| Mutation score | 100% |
-| Mutated-class line coverage | 98% |
-| Test strength | 100% |
-| No-coverage mutations | 0 |
-| Survived mutations | 0 |
+| Service | Mutated scope | Generated | Killed | Score | No coverage | Survived |
+|---|---|---:|---:|---:|---:|---:|
+| order-service | `com.example.order.application.*`, `com.example.order.domain.*` | 13 | 13 | 100% | 0 | 0 |
+| payment-service | `com.example.payment.application.*`, `com.example.payment.domain.*` | 17 | 17 | 100% | 0 | 0 |
 
 ## Post-conditions
 
 - PIT exits successfully with the configured 70% mutation threshold.
-- The report contains no survived mutations in the application/domain scope.
+- Both reports contain no survived mutations in their application/domain scopes.
 - Normal `mvn test` remains unchanged and continues to pass.
 
 ## Gotchas
@@ -59,7 +60,7 @@ The verified run used PIT 1.17.4 with the JUnit 5 plugin 1.2.1:
 - PIT is intentionally limited to application and domain logic. Including all
   Spring adapters and infrastructure classes makes the score mostly measure
   missing integration-test coverage rather than the unit-test contract.
-- Every generated mutation is now covered and killed by the test suite.
+- Every generated mutation in both services is covered and killed by the test suites.
 - The HTML report is under `target/`, so it is a local build artifact and is
   not committed.
 
