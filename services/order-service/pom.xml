@@ -123,6 +123,33 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <version>1.17.4</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-junit5-plugin</artifactId>
+                        <version>1.2.1</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <targetClasses>
+                        <param>com.example.order.application.*</param>
+                        <param>com.example.order.domain.*</param>
+                    </targetClasses>
+                    <targetTests>
+                        <param>com.example.order.*</param>
+                    </targetTests>
+                    <excludedClasses>
+                        <param>com.example.order.OrderServiceApplication</param>
+                    </excludedClasses>
+                    <threads>2</threads>
+                    <mutationThreshold>70</mutationThreshold>
+                    <timestampedReports>false</timestampedReports>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

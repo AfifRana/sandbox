@@ -139,6 +139,7 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 - [x] Prometheus/Grafana + OpenTelemetry tracing
 - [x] Kubernetes Helm chart with HPA — deployed to minikube, E2E verified ([guide](docs/e2e/e2e-v0.8.0.md))
 - [x] k6 load tests + SQL EXPLAIN PLAN case study ([guide](docs/e2e/e2e-v0.9.0.md))
+- [x] PIT mutation testing for order-service ([guide](docs/e2e/e2e-v0.10.0.md))
 
 ## Known limitations
 
