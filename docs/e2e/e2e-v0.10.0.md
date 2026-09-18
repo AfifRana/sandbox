@@ -28,9 +28,8 @@ mvn -pl services/product-service test
 
 ### 2. Run PIT
 
-PIT is configured as an opt-in Maven plugin in
-`services/order-service/pom.xml`; normal Maven test and verify commands do not
-run mutation analysis.
+PIT is configured as an opt-in Maven plugin in each tested service's `pom.xml`;
+normal Maven test and verify commands do not run mutation analysis.
 
 ```powershell
 mvn -pl services/order-service org.pitest:pitest-maven:mutationCoverage
@@ -41,8 +40,8 @@ mvn -pl services/product-service org.pitest:pitest-maven:mutationCoverage
 # expect: BUILD SUCCESS; 6/6 mutations killed
 ```
 
-The HTML report is generated at
-`services/order-service/target/pit-reports/index.html`.
+Each command writes a local HTML report at
+`services/<service>/target/pit-reports/index.html`.
 
 ## Results
 

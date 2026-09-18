@@ -105,7 +105,7 @@ Tags point at the branch tip when the milestone was verified and documented — 
 - [ ] Final regression revalidation after the OAuth2/OIDC milestone: repeat Maven verification, focused PIT, Docker Compose and Kubernetes gateway E2E flows, observability checks, and k6 workloads; update all affected E2E guides with actual results
 - [ ] Resource-efficiency/capacity case study: run a reproducible laptop-sized workload with recorded host hardware, Docker Desktop/minikube allocation, JVM/container limits, dataset, warm-up, concurrency, duration, and background load. Compare baseline and post-change CPU, container/process memory, GC, HikariCP, Kafka lag, throughput, p50/p95/p99, failures, and Kubernetes CPU-throttling/HPA data where available; document the result without claiming production-scale capacity
 - [ ] Final regression revalidation after the resource-efficiency milestone: repeat Maven verification, focused PIT, Docker Compose and Kubernetes gateway E2E flows, observability checks, k6 workloads, and the measured resource workload; update all affected E2E guides with actual results
-- [ ] ADRs after code completion: document Kafka versus RabbitMQ, the transactional outbox, Saga orchestration, flash-sale concurrency/consistency, distributed rate limiting, and OAuth2/OIDC authorization-server trade-offs with implementation-backed evidence
+- [ ] ADRs after code completion: document Kafka versus RabbitMQ, the transactional outbox, Saga orchestration, flash-sale concurrency/consistency, distributed rate limiting, OAuth2/OIDC authorization-server, and resource-efficiency trade-offs with implementation-backed evidence
 - [ ] Demo GIF/video for README
 - [ ] "Known limitations / next steps" section refresh before publishing
 

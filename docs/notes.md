@@ -61,14 +61,14 @@ also prove:
 | Requirement | Deliverable |
 |---|---|
 | Java & Spring Boot | Spring Boot 3.x, Java 21 (records, virtual threads) |
-| REST API and security | OpenAPI 3, Bean Validation, pagination, RFC 7807 problem+json errors; OAuth2/OIDC authorization server, authorization code + PKCE, RS256 JWTs, JWKS, resource-server validation, RBAC, defense in depth |
-| Oracle + SQL optimization | Indexed/partitioned schema, EXPLAIN PLAN before/after writeup, HikariCP tuning, batch inserts |
-| Microservices | 4 services, service discovery, config, Resilience4j (circuit breaker, retry, bulkhead) |
-| JUnit/Mockito | Unit + integration tests (Testcontainers), JaCoCo ≥ 80%, PIT mutation testing |
-| Design Patterns & Clean Code | Strategy (payments), Factory, Observer (events), Hexagonal architecture, ArchUnit layering tests |
+| REST API and security | Bean Validation, pagination, RFC 7807 problem+json errors; current RS256 JWTs/JWKS/resource-server validation/RBAC; required OAuth2/OIDC authorization server with authorization code + PKCE |
+| Oracle + SQL optimization | Versioned Flyway migrations, constraints and indexes, EXPLAIN PLAN before/after evidence, HikariCP sizing, and a required laptop-sized resource-efficiency study |
+| Microservices | Six services with explicit static routing/configuration, Kafka eventing, and Resilience4j retry/circuit breaker; service discovery and bulkhead isolation are not currently implemented or claimed |
+| JUnit/Mockito | JUnit/Mockito application tests, MVC security tests, ArchUnit tests, JaCoCo reports, and 100% focused PIT for order/payment/product application/domain logic; Testcontainers and a global JaCoCo threshold are not currently implemented or claimed |
+| Design Patterns & Clean Code | Strategy (payments), event-driven Observer-style consumers, Hexagonal architecture, repository ports/adapters, transactional outbox/inbox, cache-aside, circuit-breaker/retry, and planned Saga orchestration |
 | Docker & CI/CD | Multi-stage Dockerfile, docker-compose, GitHub Actions build/test/coverage/image, GHCR publication, protected staging Helm deployment, smoke test, rollback |
 | Messaging and distributed transactions | Kafka with **outbox pattern** for reliable event publishing; orchestrated Saga with explicit compensations for long-running order fulfillment |
-| Redis (bonus) | Catalog caching, rate limiting |
+| Redis | Catalog cache-aside is implemented; distributed gateway rate limiting is required |
 | Kubernetes/Cloud (bonus) | Helm chart, probes, HPA, Minikube/kind or free-tier cloud |
 
 ## Distributed rate-limiting verification
@@ -104,7 +104,8 @@ graph LR
     K --> NOTIF[notification-service]
     ORD --> O[(Oracle)]
     PROD --> O
-    PAY --> R[(Redis)]
+    PAY --> O
+    PROD --> R[(Redis)]
 ```
 
 ## The differentiators (what actually wins the interview)
@@ -113,20 +114,29 @@ graph LR
 2. **Performance section** — k6/Gatling load test; SQL optimization before/after with real numbers.
 3. **Observability** — structured logs, Micrometer + Prometheus + Grafana, OpenTelemetry tracing.
 4. **Security** — JWT/OAuth2 resource server, secrets via env vars / Vault, never in code.
-5. **Zero-downtime design** — Flyway migrations, backward-compatible API versioning, graceful shutdown.
+5. **Delivery hardening** — versioned Flyway migrations are implemented;
+   backward-compatible API evolution and graceful shutdown remain required
+   considerations for the CI/CD and deployment milestones.
 
-## Build order (2–3 weeks part-time)
+## Remaining delivery order
 
-1. Core: order-service + product-service + Oracle + Flyway + REST + tests
-2. Kafka event flow + payment/notification services + outbox pattern
-3. Inventory/payment/fulfillment Saga with compensations and failure recovery
-4. Dockerize + docker-compose + CI/CD delivery pipeline
-5. Concurrency hardening and a limited-stock flash-sale reservation case study
-6. Kubernetes + observability
-7. Full regression verification
-8. OAuth2/OIDC authorization server and its Compose/Kubernetes verification
-9. Final regression verification, then polish README, diagrams, and ADRs —
-   **this is the interview material; spend real time here**
+The platform foundation, Docker Compose, Kubernetes, observability, baseline
+performance study, and focused PIT work are complete. Finish the remaining
+implementation in this order:
+
+1. Inventory/payment/fulfillment Saga with compensations and failure recovery.
+2. CI/CD delivery: immutable GHCR images, protected staging deployment, smoke
+   testing, and rollback.
+3. Concurrency hardening: bounded listeners, ordering, race-safe idempotency,
+   coordinated parallel tests, and metrics.
+4. Limited-stock flash-sale reservation with high-contention proof.
+5. Distributed gateway rate limiting.
+6. Regression verification across the completed reliability/concurrency work.
+7. OAuth2/OIDC authorization server and Compose/Kubernetes verification.
+8. Regression verification after the OAuth2/OIDC migration.
+9. Laptop-sized resource-efficiency/capacity case study.
+10. Final regression verification, then implementation-backed ADRs, README
+    diagrams, demo media, and publishing polish.
 
 ## Cheap bonus wins
 
@@ -149,8 +159,8 @@ graph LR
   issuer is being replaced by a full OAuth2/OIDC authorization server
 - OAuth2/OIDC: authorization-code flow, PKCE, ID versus access tokens,
   issuer/audience/scopes, discovery, refresh-token rotation, and signing-key
-  rotation-server validation, and the boundary between this
-  implementation and a full OAuth2/OIDC authorization server
+  rotation; and the boundary between resource-server validation and a full
+  OAuth2/OIDC authorization server
 - SQL tuning story: slow query → EXPLAIN PLAN → index/partition → measured improvement
 - Circuit breaker: when it trips, fallback strategy, half-open recovery
 - Hexagonal architecture: ports/adapters, why testability improves
