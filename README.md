@@ -49,6 +49,10 @@ collector is internal-only.
   events in a transactional inbox (`processed_events`, claim + state change in
   one DB transaction); notification-service uses Redis SETNX with TTL and
   fails open on Redis outage.
+- **Saga orchestration (planned)**: the current payment event flow is
+  intentionally not presented as a Saga. A later milestone will coordinate
+  inventory reservation, payment, and fulfillment with durable process state
+  and compensating actions.
 - **Resilience4j on inter-service calls**: order-service prices orders from
   the catalog (client-supplied prices are not trusted), wrapped in retry +
   circuit breaker. Unknown product fails closed (400); catalog outage fails
@@ -143,6 +147,7 @@ item is required work, not an optional limitation.
 | Synchronous programming | Gateway-routed REST commands and queries, request validation, transactional Oracle writes, and synchronous order-to-catalog/payment interactions with explicit error contracts | Complete |
 | Asynchronous programming | Transactional outbox relays publish Kafka events; payment and notification consumers process at-least-once delivery idempotently | Complete |
 | Design patterns | Hexagonal architecture, repository ports/adapters, payment Strategy dispatch, transactional outbox, transactional inbox, cache-aside, and circuit-breaker/retry policies | Complete |
+| Saga pattern | An orchestrated order workflow will reserve inventory, charge payment, and request fulfillment; failures will compensate completed steps by releasing inventory and refunding/reversing payment where appropriate | Required |
 | Containerization | Multi-stage, non-root service images and a Docker Compose environment for Oracle, Kafka, Redis, observability, and all services | Complete |
 | Orchestration | Helm chart, probes, resource limits, HPA, and a minikube deployment verified through the in-cluster gateway | Complete |
 | CI/CD | GitHub Actions must verify builds/tests and publish immutable images to GHCR; an approved deployment workflow must deploy a pinned image to a configured staging cluster, run smoke tests, and support rollback | Required |
@@ -155,6 +160,7 @@ item is required work, not an optional limitation.
 - [x] Kubernetes Helm chart with HPA — deployed to minikube, E2E verified ([guide](docs/e2e/e2e-v0.8.0.md))
 - [x] k6 load tests + SQL EXPLAIN PLAN case study ([guide](docs/e2e/e2e-v0.9.0.md))
 - [x] PIT mutation testing for order-service, payment-service, and product-service ([guide](docs/e2e/e2e-v0.10.0.md))
+- [ ] Saga orchestration: add durable order-process state for inventory reservation → payment → fulfillment; implement idempotent commands/events, timeouts/retries, and compensations (release inventory and refund/reverse payment); E2E-verify successful, rejected, and post-payment failure paths
 - [ ] CI/CD delivery: publish immutable multi-service images to GHCR; add an approved, pinned-image Helm deployment workflow for a configured staging cluster; verify smoke tests and documented rollback
 - [ ] Multithreading/concurrency: configure bounded Kafka consumer concurrency with partition-order guarantees; prove race-safe idempotent payment/event processing with coordinated concurrent-request tests; capture virtual-thread, listener, and database-pool metrics
 

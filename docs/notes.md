@@ -13,6 +13,7 @@ exist; configuring a library without proving its behavior is not sufficient.
 | Synchronous programming | REST request/response flows through the gateway; validation, Problem Details errors, database transactions, and synchronous catalog/payment interactions are covered by unit, API, and E2E tests. |
 | Asynchronous programming | Transactional outbox relays publish Kafka events after commits; payment/order/notification consumers use at-least-once delivery with idempotent inbox or Redis deduplication. Duplicate delivery is E2E tested. |
 | Design patterns | Hexagonal ports/adapters and repository ports isolate business logic; payment methods use Strategy dispatch; outbox/inbox, cache-aside, and circuit-breaker/retry policies solve specific distributed-system concerns. |
+| Saga pattern | Required completion: an orchestrated, durable order process coordinates inventory reservation, payment, and fulfillment. Each command/event is idempotent; failures compensate completed work by releasing inventory and refunding/reversing payment where appropriate. E2E tests must cover success, rejection, retry, timeout, and failure after payment. The current outbox/inbox event flow is not a Saga because it has no process coordinator or compensations. |
 | Containerization | Each service has a multi-stage, non-root image; Docker Compose supplies a reproducible full-stack local runtime. |
 | Orchestration | Helm deploys the platform to Kubernetes with resource limits, startup/liveness/readiness probes, HPA, and a full gateway-based cluster E2E flow. |
 | CI/CD | CI builds, tests, produces coverage artifacts, and builds images. Required completion: immutable GHCR publication plus a protected, approved staging Helm deployment using pinned image digests/tags, smoke tests, and documented rollback. |
@@ -30,7 +31,7 @@ exist; configuring a library without proving its behavior is not sufficient.
 | JUnit/Mockito | Unit + integration tests (Testcontainers), JaCoCo ≥ 80%, PIT mutation testing |
 | Design Patterns & Clean Code | Strategy (payments), Factory, Observer (events), Hexagonal architecture, ArchUnit layering tests |
 | Docker & CI/CD | Multi-stage Dockerfile, docker-compose, GitHub Actions build/test/coverage/image, GHCR publication, protected staging Helm deployment, smoke test, rollback |
-| Messaging (bonus) | Kafka with **outbox pattern** for reliable event publishing |
+| Messaging and distributed transactions | Kafka with **outbox pattern** for reliable event publishing; orchestrated Saga with explicit compensations for long-running order fulfillment |
 | Redis (bonus) | Catalog caching, rate limiting |
 | Kubernetes/Cloud (bonus) | Helm chart, probes, HPA, Minikube/kind or free-tier cloud |
 
@@ -61,9 +62,10 @@ graph LR
 
 1. Core: order-service + product-service + Oracle + Flyway + REST + tests
 2. Kafka event flow + payment/notification services + outbox pattern
-3. Dockerize + docker-compose + CI pipeline
-4. Kubernetes + observability
-5. Polish README, diagrams, ADRs — **this is the interview material; spend real time here**
+3. Inventory/payment/fulfillment Saga with compensations and failure recovery
+4. Dockerize + docker-compose + CI/CD delivery pipeline
+5. Kubernetes + observability
+6. Polish README, diagrams, ADRs — **this is the interview material; spend real time here**
 
 ## Cheap bonus wins
 
@@ -75,6 +77,9 @@ graph LR
 
 - Why outbox pattern solves dual-write problem (DB + Kafka consistency)
 - Idempotent consumers (dedup keys, exactly-once vs at-least-once)
+- Why the current outbox/inbox flow is not a Saga; orchestrator versus
+  choreography; compensation versus database rollback; and why the order
+  workflow uses an orchestrated Saga
 - SQL tuning story: slow query → EXPLAIN PLAN → index/partition → measured improvement
 - Circuit breaker: when it trips, fallback strategy, half-open recovery
 - Hexagonal architecture: ports/adapters, why testability improves

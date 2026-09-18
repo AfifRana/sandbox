@@ -96,6 +96,7 @@ Tags point at the branch tip when the milestone was verified and documented — 
 ## 🔜 Next up (priority order)
 
 - [ ] ADRs (why Kafka over RabbitMQ, why outbox pattern)
+- [ ] Saga orchestration: introduce durable order-process state to coordinate inventory reservation → payment → fulfillment; support idempotent step commands/events, retries/timeouts, and compensations (release inventory, refund/reverse payment); E2E-verify success, inventory rejection, payment rejection, post-payment fulfillment failure, replay, and recovery
 - [ ] CI/CD delivery: GitHub Actions publishes immutable service images to GHCR; a protected, approved deployment workflow performs a pinned-image Helm upgrade to a configured staging cluster, smoke-tests the gateway, and documents rollback
 - [ ] Multithreading/concurrency: configure bounded Kafka listener concurrency while preserving per-key ordering; prove transactional-inbox and payment idempotency under coordinated parallel requests; record virtual-thread, listener, and HikariCP-pool metrics
 - [ ] Full regression revalidation after the CI/CD and concurrency milestones: run the complete Maven verification suite, focused PIT for order/payment/product, Docker Compose end-to-end lifecycle, Kubernetes Helm gateway lifecycle, observability checks, and the k6 workload; update every affected E2E guide with the actual results
