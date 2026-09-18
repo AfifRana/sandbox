@@ -159,6 +159,7 @@ item is required work, not an optional limitation.
 | Multithreading and concurrency | Virtual threads and scheduled outbox work are enabled; complete this with bounded Kafka-listener concurrency, race-safe idempotent processing, deterministic concurrent-request tests, and a flash-sale inventory-reservation workflow | Required |
 | Caching | Redis cache-aside product reads with TTL, evict-on-write invalidation, and an explicit fail-open outage policy | Complete |
 | OAuth2/OIDC authorization server | Replace the custom issuer with a standards-based authorization server supporting authorization-code flow with PKCE, OIDC discovery and UserInfo, registered clients, persistent signing keys with rotation, refresh-token rotation, and issuer/audience/scope validation by resource servers | Required |
+| Resource efficiency and capacity | Run a repeatable, laptop-sized workload under fixed Docker Compose or minikube limits; capture CPU, memory, GC, connection-pool, Kafka-lag, throughput, and latency baselines before and after one measured improvement | Required |
 
 - [x] Idempotent consumers: transactional inbox + Redis SETNX dedupe
 - [x] Resilience4j circuit breaker + retry on catalog calls (fail-open on outage, fail-closed on unknown product)
@@ -172,6 +173,7 @@ item is required work, not an optional limitation.
 - [ ] Flash-sale inventory reservation: implement limited-stock reservation with an authoritative atomic inventory decrement, idempotency keys, reservation expiry/release, oversell prevention, contention controls, and a high-parallelism E2E/load test proving that successful reservations never exceed available stock
 - [ ] Full regression revalidation: after the Saga, CI/CD, concurrency, and flash-sale milestones, rerun Maven verification, focused PIT, Docker Compose and Kubernetes gateway E2E flows, observability checks, and k6 workloads; update affected guides with actual results
 - [ ] OAuth2/OIDC authorization server: replace the custom token issuer with a mature standards-based implementation; support authorization-code flow with PKCE, registered clients, OIDC discovery/UserInfo, persistent signing keys and safe key rotation, refresh-token rotation, and issuer/audience/scope validation; E2E-verify authorization, expiry, insufficient scope, refresh rotation/reuse rejection, and key rotation without breaking valid requests
+- [ ] Resource-efficiency/capacity case study: define and record the laptop hardware, Docker Desktop/minikube allocation, JVM/container limits, dataset, warm-up, VUs, duration, and background-load conditions; capture comparable baseline and post-change CPU, container/process memory, GC, HikariCP, Kafka lag, throughput, p50/p95/p99, failures, and Kubernetes CPU-throttling/HPA data where available; document one measured improvement or an honest negative result without claiming production-scale capacity
 - [ ] ADRs: document Kafka versus RabbitMQ, the transactional outbox, Saga orchestration, and the selected flash-sale concurrency/consistency strategy after those implementations are complete
 
 ## Known limitations
