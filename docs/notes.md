@@ -32,14 +32,34 @@ exist; configuring a library without proving its behavior is not sufficient.
 | OAuth2 resource server | The gateway and order/product/payment services use OAuth2 resource-server JWT validation. The gateway validates at the edge; services validate again for defense in depth. |
 | Role-based access control | The `roles` claim maps to `ROLE_*` authorities. Customer-only payments/order creation, customer-or-admin order reads, admin-only product writes, and public catalog reads are enforced and web-layer tested. |
 | Stateless API security | CSRF is disabled for the bearer-token APIs; protected routes require a valid JWT and unauthenticated/unauthorized paths are tested. |
-| Not implemented | This is not a complete OAuth2/OIDC authorization server: no authorization-code flow, PKCE, refresh tokens, client registration, consent, discovery, user-info endpoint, token revocation/introspection, persistent keys, or key rotation. |
+| Required authorization-server milestone | Replace the custom issuer with a mature standards-based OAuth2/OIDC authorization server, rather than implementing protocol flows or token cryptography from scratch. It must provide authorization-code flow with PKCE, registered clients, OIDC discovery, UserInfo, persistent signing keys with safe rotation, refresh-token rotation, and issuer/audience/scope validation by every resource server. |
+| Deliberate non-goals | Do not add deprecated Resource Owner Password Credentials, dynamic client registration, device flow, federation/SAML, social login, multi-tenancy, opaque-token introspection, or custom cryptography unless a real platform requirement is introduced. |
+
+### Authorization-server verification
+
+The OAuth2/OIDC milestone is complete only when a registered public client can
+complete an authorization-code flow with PKCE and use the resulting access
+token through the gateway and a protected resource service. Verification must
+also prove:
+
+- OIDC discovery and JWKS expose the issuer's active public signing key;
+- an ID token and UserInfo response contain the intended identity claims;
+- expired, wrong-issuer, wrong-audience, and insufficient-scope tokens are
+  rejected at the gateway and resource-server boundaries;
+- refresh-token rotation issues a replacement token and rejects reuse of the
+  rotated token;
+- a signing-key rotation keeps existing valid requests working during the
+  published-key overlap;
+- persistent users, registered clients, grants, and signing-key metadata
+  survive an auth-service restart;
+- the Compose and Kubernetes paths run the same critical authorization flow.
 
 ## Target role checklist → what to build
 
 | Requirement | Deliverable |
 |---|---|
 | Java & Spring Boot | Spring Boot 3.x, Java 21 (records, virtual threads) |
-| REST API and security | OpenAPI 3, Bean Validation, pagination, RFC 7807 problem+json errors; RS256 JWTs, JWKS, OAuth2 resource-server validation, RBAC, defense in depth |
+| REST API and security | OpenAPI 3, Bean Validation, pagination, RFC 7807 problem+json errors; OAuth2/OIDC authorization server, authorization code + PKCE, RS256 JWTs, JWKS, resource-server validation, RBAC, defense in depth |
 | Oracle + SQL optimization | Indexed/partitioned schema, EXPLAIN PLAN before/after writeup, HikariCP tuning, batch inserts |
 | Microservices | 4 services, service discovery, config, Resilience4j (circuit breaker, retry, bulkhead) |
 | JUnit/Mockito | Unit + integration tests (Testcontainers), JaCoCo ≥ 80%, PIT mutation testing |
@@ -80,7 +100,9 @@ graph LR
 4. Dockerize + docker-compose + CI/CD delivery pipeline
 5. Concurrency hardening and a limited-stock flash-sale reservation case study
 6. Kubernetes + observability
-7. Full regression verification, then polish README, diagrams, and ADRs —
+7. Full regression verification
+8. OAuth2/OIDC authorization server and its Compose/Kubernetes verification
+9. Final regression verification, then polish README, diagrams, and ADRs —
    **this is the interview material; spend real time here**
 
 ## Cheap bonus wins
@@ -100,7 +122,11 @@ graph LR
   idempotency and expiry prevent overselling, and how contention results are
   verified under high parallelism
 - RS256/JWKS: private-key signing, public-key verification, key identifiers,
-  JWT claims, OAuth2 resource-server validation, and the boundary between this
+  JWT claims, OAuth2 resource-server validation, and why the current custom
+  issuer is being replaced by a full OAuth2/OIDC authorization server
+- OAuth2/OIDC: authorization-code flow, PKCE, ID versus access tokens,
+  issuer/audience/scopes, discovery, refresh-token rotation, and signing-key
+  rotation-server validation, and the boundary between this
   implementation and a full OAuth2/OIDC authorization server
 - SQL tuning story: slow query → EXPLAIN PLAN → index/partition → measured improvement
 - Circuit breaker: when it trips, fallback strategy, half-open recovery
