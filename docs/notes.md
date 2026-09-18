@@ -2,6 +2,21 @@
 
 Reference notes for the portfolio build. Domain: e-commerce order processing.
 
+## Known gaps (audit findings)
+
+Identified while reviewing coverage of core backend topics (see
+`docs/progress.md` next-up backlog for tracking):
+
+- **CI/CD**: CI (build → test → JaCoCo → Docker image) is done. CD is not —
+  there is no registry push (ghcr.io) or automated deploy step; the CI
+  workflow still has a `TODO` for this.
+- **Multithreading/concurrency**: virtual threads are enabled and HikariCP
+  pools are sized, but no code demonstrates manual concurrency primitives
+  (`ExecutorService`/`CompletableFuture` composition, tuned Kafka listener
+  concurrency, or a concurrency-safe in-memory structure). Everything else in
+  the target checklist below (async messaging, design patterns,
+  containerization, orchestration, caching) is implemented and E2E-verified.
+
 ## Target role checklist → what to build
 
 | Requirement | Deliverable |

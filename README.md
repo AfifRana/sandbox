@@ -140,6 +140,8 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 - [x] Kubernetes Helm chart with HPA — deployed to minikube, E2E verified ([guide](docs/e2e/e2e-v0.8.0.md))
 - [x] k6 load tests + SQL EXPLAIN PLAN case study ([guide](docs/e2e/e2e-v0.9.0.md))
 - [x] PIT mutation testing for order-service, payment-service, and product-service ([guide](docs/e2e/e2e-v0.10.0.md))
+- [ ] CD: push images to a container registry and deploy from CI (CI currently stops at build/test/image build)
+- [ ] Explicit multithreading/concurrency case study (virtual threads and HikariCP sizing are configured, but no code yet demonstrates manual concurrency primitives)
 
 ## Known limitations
 
@@ -148,3 +150,8 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 - No per-customer authorization on order reads (any authenticated
   CUSTOMER/ADMIN can read any order by id)
 - Notification consumer logs instead of sending real notifications
+- CI builds and tests every push but does not push images to a registry or
+  deploy anywhere; promotion to a cluster is manual
+- Concurrency is limited to Spring/Kafka defaults plus virtual threads and a
+  tuned connection pool — no service yet demonstrates hand-rolled thread
+  coordination (executors, futures, or concurrent data structures)
