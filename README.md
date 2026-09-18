@@ -64,6 +64,11 @@ collector is internal-only.
   public key via JWKS; the gateway validates at the edge and every service
   re-validates independently (defense in depth). Roles live in a custom
   `roles` claim mapped to `ROLE_*` authorities per service.
+- **Authentication scope**: this is a custom JWT issuer plus OAuth2 resource
+  servers, not a complete OAuth2/OIDC authorization server. It deliberately
+  does not yet implement authorization-code flow, PKCE, refresh tokens,
+  consent, client registration, token revocation/introspection, or persistent
+  signing-key rotation.
 - **Observability**: every service exposes Prometheus metrics (scraped on the
   internal Docker network, never through the gateway) and ships OTLP traces
   through an OpenTelemetry collector to Jaeger. Grafana is provisioned with
@@ -151,7 +156,7 @@ item is required work, not an optional limitation.
 | Containerization | Multi-stage, non-root service images and a Docker Compose environment for Oracle, Kafka, Redis, observability, and all services | Complete |
 | Orchestration | Helm chart, probes, resource limits, HPA, and a minikube deployment verified through the in-cluster gateway | Complete |
 | CI/CD | GitHub Actions must verify builds/tests and publish immutable images to GHCR; an approved deployment workflow must deploy a pinned image to a configured staging cluster, run smoke tests, and support rollback | Required |
-| Multithreading and concurrency | Virtual threads and scheduled outbox work are enabled; complete this with bounded Kafka-listener concurrency, race-safe idempotent processing, and deterministic concurrent-request tests | Required |
+| Multithreading and concurrency | Virtual threads and scheduled outbox work are enabled; complete this with bounded Kafka-listener concurrency, race-safe idempotent processing, deterministic concurrent-request tests, and a flash-sale inventory-reservation workflow | Required |
 | Caching | Redis cache-aside product reads with TTL, evict-on-write invalidation, and an explicit fail-open outage policy | Complete |
 
 - [x] Idempotent consumers: transactional inbox + Redis SETNX dedupe
@@ -163,6 +168,9 @@ item is required work, not an optional limitation.
 - [ ] Saga orchestration: add durable order-process state for inventory reservation → payment → fulfillment; implement idempotent commands/events, timeouts/retries, and compensations (release inventory and refund/reverse payment); E2E-verify successful, rejected, and post-payment failure paths
 - [ ] CI/CD delivery: publish immutable multi-service images to GHCR; add an approved, pinned-image Helm deployment workflow for a configured staging cluster; verify smoke tests and documented rollback
 - [ ] Multithreading/concurrency: configure bounded Kafka consumer concurrency with partition-order guarantees; prove race-safe idempotent payment/event processing with coordinated concurrent-request tests; capture virtual-thread, listener, and database-pool metrics
+- [ ] Flash-sale inventory reservation: implement limited-stock reservation with an authoritative atomic inventory decrement, idempotency keys, reservation expiry/release, oversell prevention, contention controls, and a high-parallelism E2E/load test proving that successful reservations never exceed available stock
+- [ ] Full regression revalidation: after the Saga, CI/CD, concurrency, and flash-sale milestones, rerun Maven verification, focused PIT, Docker Compose and Kubernetes gateway E2E flows, observability checks, and k6 workloads; update affected guides with actual results
+- [ ] ADRs: document Kafka versus RabbitMQ, the transactional outbox, Saga orchestration, and the selected flash-sale concurrency/consistency strategy after those implementations are complete
 
 ## Known limitations
 
