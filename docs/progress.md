@@ -96,8 +96,9 @@ Tags point at the branch tip when the milestone was verified and documented — 
 ## 🔜 Next up (priority order)
 
 - [ ] ADRs (why Kafka over RabbitMQ, why outbox pattern)
-- [ ] CD: push images to a container registry (ghcr.io) and deploy from CI (currently CI only builds/tests; the registry push and cluster deploy steps are a `TODO` in `.github/workflows/ci.yml`)
-- [ ] Explicit multithreading/concurrency showcase: virtual threads and HikariCP sizing are configured, but no code demonstrates manual concurrency primitives (`ExecutorService`/`CompletableFuture` composition, tuned Kafka listener concurrency, or a concurrency-safe in-memory structure) — add a small, honestly-scoped case study
+- [ ] CI/CD delivery: GitHub Actions publishes immutable service images to GHCR; a protected, approved deployment workflow performs a pinned-image Helm upgrade to a configured staging cluster, smoke-tests the gateway, and documents rollback
+- [ ] Multithreading/concurrency: configure bounded Kafka listener concurrency while preserving per-key ordering; prove transactional-inbox and payment idempotency under coordinated parallel requests; record virtual-thread, listener, and HikariCP-pool metrics
+- [ ] Full regression revalidation after the CI/CD and concurrency milestones: run the complete Maven verification suite, focused PIT for order/payment/product, Docker Compose end-to-end lifecycle, Kubernetes Helm gateway lifecycle, observability checks, and the k6 workload; update every affected E2E guide with the actual results
 - [ ] Demo GIF/video for README
 - [ ] "Known limitations / next steps" section refresh before publishing
 

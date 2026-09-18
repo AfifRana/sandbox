@@ -2,7 +2,7 @@
 
 A microservices-based order processing system demonstrating production-grade
 backend engineering: hexagonal architecture, transactional outbox, Oracle with
-performance-tuned SQL, Kafka eventing, and full CI/CD.
+performance-tuned SQL, Kafka eventing, and production-oriented delivery.
 
 ## Architecture
 
@@ -134,14 +134,29 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 
 ## Roadmap
 
+This platform must demonstrate each backend concept below end to end. A checked
+item has reproducible implementation and verification evidence; an unchecked
+item is required work, not an optional limitation.
+
+| Topic | How this project demonstrates it | Completion status |
+|---|---|---|
+| Synchronous programming | Gateway-routed REST commands and queries, request validation, transactional Oracle writes, and synchronous order-to-catalog/payment interactions with explicit error contracts | Complete |
+| Asynchronous programming | Transactional outbox relays publish Kafka events; payment and notification consumers process at-least-once delivery idempotently | Complete |
+| Design patterns | Hexagonal architecture, repository ports/adapters, payment Strategy dispatch, transactional outbox, transactional inbox, cache-aside, and circuit-breaker/retry policies | Complete |
+| Containerization | Multi-stage, non-root service images and a Docker Compose environment for Oracle, Kafka, Redis, observability, and all services | Complete |
+| Orchestration | Helm chart, probes, resource limits, HPA, and a minikube deployment verified through the in-cluster gateway | Complete |
+| CI/CD | GitHub Actions must verify builds/tests and publish immutable images to GHCR; an approved deployment workflow must deploy a pinned image to a configured staging cluster, run smoke tests, and support rollback | Required |
+| Multithreading and concurrency | Virtual threads and scheduled outbox work are enabled; complete this with bounded Kafka-listener concurrency, race-safe idempotent processing, and deterministic concurrent-request tests | Required |
+| Caching | Redis cache-aside product reads with TTL, evict-on-write invalidation, and an explicit fail-open outage policy | Complete |
+
 - [x] Idempotent consumers: transactional inbox + Redis SETNX dedupe
 - [x] Resilience4j circuit breaker + retry on catalog calls (fail-open on outage, fail-closed on unknown product)
 - [x] Prometheus/Grafana + OpenTelemetry tracing
 - [x] Kubernetes Helm chart with HPA — deployed to minikube, E2E verified ([guide](docs/e2e/e2e-v0.8.0.md))
 - [x] k6 load tests + SQL EXPLAIN PLAN case study ([guide](docs/e2e/e2e-v0.9.0.md))
 - [x] PIT mutation testing for order-service, payment-service, and product-service ([guide](docs/e2e/e2e-v0.10.0.md))
-- [ ] CD: push images to a container registry and deploy from CI (CI currently stops at build/test/image build)
-- [ ] Explicit multithreading/concurrency case study (virtual threads and HikariCP sizing are configured, but no code yet demonstrates manual concurrency primitives)
+- [ ] CI/CD delivery: publish immutable multi-service images to GHCR; add an approved, pinned-image Helm deployment workflow for a configured staging cluster; verify smoke tests and documented rollback
+- [ ] Multithreading/concurrency: configure bounded Kafka consumer concurrency with partition-order guarantees; prove race-safe idempotent payment/event processing with coordinated concurrent-request tests; capture virtual-thread, listener, and database-pool metrics
 
 ## Known limitations
 
@@ -150,8 +165,3 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 - No per-customer authorization on order reads (any authenticated
   CUSTOMER/ADMIN can read any order by id)
 - Notification consumer logs instead of sending real notifications
-- CI builds and tests every push but does not push images to a registry or
-  deploy anywhere; promotion to a cluster is manual
-- Concurrency is limited to Spring/Kafka defaults plus virtual threads and a
-  tuned connection pool — no service yet demonstrates hand-rolled thread
-  coordination (executors, futures, or concurrent data structures)

@@ -2,20 +2,22 @@
 
 Reference notes for the portfolio build. Domain: e-commerce order processing.
 
-## Known gaps (audit findings)
+## Required backend-concept coverage
 
-Identified while reviewing coverage of core backend topics (see
-`docs/progress.md` next-up backlog for tracking):
+This portfolio must fully demonstrate the following concepts. Completion means
+the implementation, automated tests, E2E reproduction steps, and documentation
+exist; configuring a library without proving its behavior is not sufficient.
 
-- **CI/CD**: CI (build → test → JaCoCo → Docker image) is done. CD is not —
-  there is no registry push (ghcr.io) or automated deploy step; the CI
-  workflow still has a `TODO` for this.
-- **Multithreading/concurrency**: virtual threads are enabled and HikariCP
-  pools are sized, but no code demonstrates manual concurrency primitives
-  (`ExecutorService`/`CompletableFuture` composition, tuned Kafka listener
-  concurrency, or a concurrency-safe in-memory structure). Everything else in
-  the target checklist below (async messaging, design patterns,
-  containerization, orchestration, caching) is implemented and E2E-verified.
+| Concept | Project implementation and proof |
+|---|---|
+| Synchronous programming | REST request/response flows through the gateway; validation, Problem Details errors, database transactions, and synchronous catalog/payment interactions are covered by unit, API, and E2E tests. |
+| Asynchronous programming | Transactional outbox relays publish Kafka events after commits; payment/order/notification consumers use at-least-once delivery with idempotent inbox or Redis deduplication. Duplicate delivery is E2E tested. |
+| Design patterns | Hexagonal ports/adapters and repository ports isolate business logic; payment methods use Strategy dispatch; outbox/inbox, cache-aside, and circuit-breaker/retry policies solve specific distributed-system concerns. |
+| Containerization | Each service has a multi-stage, non-root image; Docker Compose supplies a reproducible full-stack local runtime. |
+| Orchestration | Helm deploys the platform to Kubernetes with resource limits, startup/liveness/readiness probes, HPA, and a full gateway-based cluster E2E flow. |
+| CI/CD | CI builds, tests, produces coverage artifacts, and builds images. Required completion: immutable GHCR publication plus a protected, approved staging Helm deployment using pinned image digests/tags, smoke tests, and documented rollback. |
+| Multithreading and concurrency | Virtual threads, scheduled outbox relay work, and connection-pool limits establish runtime foundations. Required completion: bounded Kafka listener concurrency, partition-order behavior, race-safe idempotency, coordinated parallel-request tests, and concurrency metrics. |
+| Caching | product-service uses Redis cache-aside reads, TTL, evict-on-write invalidation, cache miss/hit E2E tests, and a documented fail-open Redis-outage policy. |
 
 ## Target role checklist → what to build
 
@@ -27,7 +29,7 @@ Identified while reviewing coverage of core backend topics (see
 | Microservices | 4 services, service discovery, config, Resilience4j (circuit breaker, retry, bulkhead) |
 | JUnit/Mockito | Unit + integration tests (Testcontainers), JaCoCo ≥ 80%, PIT mutation testing |
 | Design Patterns & Clean Code | Strategy (payments), Factory, Observer (events), Hexagonal architecture, ArchUnit layering tests |
-| Docker & CI/CD | Multi-stage Dockerfile, docker-compose, GitHub Actions (build → test → Sonar → image → registry) |
+| Docker & CI/CD | Multi-stage Dockerfile, docker-compose, GitHub Actions build/test/coverage/image, GHCR publication, protected staging Helm deployment, smoke test, rollback |
 | Messaging (bonus) | Kafka with **outbox pattern** for reliable event publishing |
 | Redis (bonus) | Catalog caching, rate limiting |
 | Kubernetes/Cloud (bonus) | Helm chart, probes, HPA, Minikube/kind or free-tier cloud |
