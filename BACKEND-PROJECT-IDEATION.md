@@ -111,8 +111,11 @@ Suggested logical components:
 - **Identity**: users, credentials, tokens, roles, and key discovery.
 - **Gateway or edge**: routing, cross-cutting policies, and request context.
 - **Catalog**: product data, pricing, inventory-facing reads, and caching.
+- **Inventory**: authoritative stock, time-bounded reservations, and release
+  of expired or compensated reservations.
 - **Orders**: order lifecycle, validation, totals, and order queries.
 - **Payments**: payment methods, idempotency, and payment state.
+- **Fulfillment**: shipment or fulfillment requests and their outcome.
 - **Notifications**: asynchronous delivery and consumer deduplication.
 - **Platform operations**: metrics, traces, health, deployment, and recovery.
 
@@ -150,6 +153,36 @@ and the minimum data required by consumers.
 Consumers must tolerate duplicate delivery. A failed consumer should be
 observable and replayable without charging a customer or sending duplicate
 notifications.
+
+### Long-running order workflow
+
+Do not call an outbox plus idempotent consumers a Saga. Those patterns make
+event publication and delivery reliable, but they do not coordinate a
+multi-service business transaction or undo completed work.
+
+For inventory, payment, and fulfillment, use an orchestrated Saga with durable
+process state. The coordinator must issue idempotent step commands, persist
+progress, apply bounded retries/timeouts, and compensate completed work when a
+later step fails:
+
+```text
+Reserve inventory -> Charge payment -> Request fulfillment -> Confirm order
+       |                    |                    |
+       +-> reject order     +-> release stock    +-> refund/reverse payment
+                                                    -> release stock
+```
+
+### Limited-stock flash sale
+
+Include a high-contention inventory scenario, not only ordinary concurrent
+requests. The inventory reservation must have one authoritative, atomically
+enforced stock decision (for example, a conditional decrement or equivalent
+transactional reservation), an idempotency key, expiry/release handling, and
+an invariant that successful reservations never exceed available stock.
+
+Prove the invariant with a coordinated high-parallelism test and a
+representative load run. Rate limiting protects capacity and fairness; it must
+not be the mechanism relied on for stock correctness.
 
 ## Milestone roadmap
 
@@ -198,27 +231,57 @@ are all tested and documented.
 **Proof:** a committed business change eventually produces one effective
 consumer side effect, including after duplicate delivery.
 
-### Milestone 4 — Security and boundary protection
+### Milestone 4 — Saga orchestration and inventory consistency
 
-- Add authentication and token/session validation.
+- Add durable Saga process state for inventory reservation, payment, and
+  fulfillment.
+- Make every command/event idempotent and define retry/timeout behavior.
+- Compensate failed workflows by releasing inventory and refunding/reversing
+  settled payments where appropriate.
+- Add limited-stock reservation, expiry/release, and oversell prevention.
+
+**Proof:** E2E tests cover successful completion, inventory rejection, payment
+rejection, post-payment fulfillment failure, replay, recovery, and a
+high-parallelism run where successful reservations never exceed stock.
+
+### Milestone 5 — Security and boundary protection
+
+- Start with authentication, token/session validation, and a role/permission
+  matrix.
+- Use OAuth2 resource-server validation at the gateway and protected service
+  boundaries when defense in depth is required.
+- Replace any custom demo issuer with a mature OAuth2/OIDC authorization
+  server: authorization-code flow with PKCE, registered clients, OIDC
+  discovery/UserInfo, refresh-token rotation, persistent signing keys, and
+  safe key rotation.
 - Define a role or permission matrix.
 - Enforce authorization on every protected operation.
 - Add negative tests for unauthenticated and unauthorized access.
 
-**Proof:** the documented access matrix passes through the gateway and, when
-applicable, through direct service access.
+**Proof:** authorization-code + PKCE, token expiry, wrong issuer/audience,
+insufficient scope, refresh-token rotation/reuse rejection, signing-key
+rotation, restart persistence, and the documented access matrix pass through
+the gateway and protected resource-service boundaries.
 
-### Milestone 5 — Resilience and failure policy
+### Milestone 6 — Resilience, rate limiting, and failure policy
 
 - Add timeouts and bounded retries to remote calls.
 - Add circuit breaking or an equivalent fail-fast mechanism.
 - Define fail-open versus fail-closed behavior explicitly.
 - Ensure fallback behavior never hides an invalid business result.
+- Add distributed gateway rate limiting with Redis-backed token buckets shared
+  across gateway replicas.
+- Apply route-specific quotas: login by IP plus normalized username hash,
+  anonymous reads by IP, authenticated writes by subject, and flash-sale
+  reservations by subject plus sale/product.
+- Return `429 Too Many Requests` and `Retry-After`; exclude health/metrics;
+  define and test Redis-outage policy per route.
 
 **Proof:** controlled dependency failure demonstrates retry, open-circuit,
-fallback, recovery, and clear telemetry.
+fallback, recovery, rate-limit burst/refill, two-user fairness, shared
+cross-replica quota, `429` behavior, and clear telemetry.
 
-### Milestone 6 — Observability
+### Milestone 7 — Observability
 
 - Add structured logs with correlation and trace identifiers.
 - Expose application, dependency, and business metrics.
@@ -229,29 +292,37 @@ fallback, recovery, and clear telemetry.
 **Proof:** one business request can be followed from ingress to persistence,
 messaging, and a consumer.
 
-### Milestone 7 — Performance case study
+### Milestone 8 — Concurrency and performance case study
 
 - Select one query or workflow with a measurable bottleneck.
 - Capture a reproducible baseline workload.
 - Inspect the query plan and relevant runtime metrics.
 - Apply one focused change.
 - Re-run the same workload and document both positive and negative results.
+- Configure bounded consumer concurrency while preserving per-key/partition
+  ordering where required.
+- Add deterministic coordinated parallel-request tests for idempotency and
+  limited-stock correctness.
 
 **Proof:** before/after artifacts include workload parameters, measurements,
-query-plan evidence, and an honest conclusion.
+query-plan evidence, concurrency correctness, and an honest conclusion.
 
-### Milestone 8 — Deployment and operations
+### Milestone 9 — Deployment, CI/CD, and operations
 
 - Containerize services using secure runtime defaults.
 - Add local orchestration and a production-like deployment target.
 - Configure readiness, liveness, startup behavior, resource limits, and
   graceful shutdown.
+- Build, test, and publish immutable images to a registry.
+- Deploy a pinned image to a protected staging environment only through an
+  approved workflow; run gateway smoke tests and document rollback.
 - Document rollback, migration, backup, and infrastructure recovery steps.
 
 **Proof:** a clean environment can deploy the platform and complete a full
-business workflow through the public entry point.
+business workflow through the public entry point, and the delivery workflow can
+deploy and roll back a pinned version.
 
-### Milestone 9 — Test-strength and engineering evidence
+### Milestone 10 — Test-strength and engineering evidence
 
 - Add architecture tests for dependency direction.
 - Add contract tests for public and event schemas.
@@ -262,16 +333,32 @@ business workflow through the public entry point.
 **Proof:** quality reports are reproducible, scoped honestly, and tied to
 business behavior rather than inflated aggregate percentages.
 
-### Milestone 10 — Portfolio polish
+### Milestone 11 — Resource efficiency and capacity
+
+- Record local hardware, Docker/Kubernetes allocation, JVM/container limits,
+  data shape, warm-up, concurrency, duration, and background workload.
+- Under the same conditions, measure CPU, process/container memory, heap/GC,
+  connection pools, consumer lag, throughput, latency, failures, and
+  CPU-throttling/HPA behavior where available.
+- Make one focused efficiency change and compare it with the baseline.
+
+**Proof:** reproducible laptop-sized artifacts show the conditions and
+before/after result without claiming production-scale capacity from local data.
+
+### Milestone 12 — Full regression and portfolio polish
 
 - Add architecture decision records for important trade-offs.
+- Re-run the complete automated suite and all affected Compose/Kubernetes E2E
+  flows after cross-cutting changes to messaging, auth, concurrency, rate
+  limiting, deployment, or resource settings.
 - Document known limitations and deliberate non-goals.
 - Add a concise architecture diagram and request-flow example.
 - Provide a short demo recording or reproducible walkthrough.
 - Explain how the design translates to another language or runtime.
 
 **Proof:** a reviewer can understand the system, run the critical path, inspect
-the evidence, and identify the reasoning behind major decisions.
+the evidence, identify the reasoning behind major decisions, and reproduce the
+final regression results.
 
 ## Language translation guide
 
@@ -287,7 +374,11 @@ and libraries differ:
 | Transaction | database transaction context, unit of work |
 | Outbox | transactional table plus relay, CDC, durable event log |
 | Consumer deduplication | inbox table, idempotency store, unique key, SETNX |
+| Saga | durable process manager/orchestrator, state machine, compensating commands |
+| Stock reservation | conditional update, optimistic/pessimistic lock, transactional reservation |
+| Rate limiting | Redis token bucket/leaky bucket, gateway middleware/filter |
 | Circuit breaker | library policy, middleware, stateful client wrapper |
+| OAuth2/OIDC authorization server | mature ecosystem authorization-server package or managed identity provider |
 | Structured error | problem document, typed error, error envelope |
 | Dependency injection | framework container, composition root, explicit wiring |
 | Contract test | consumer-driven contract, schema test, API compatibility test |
@@ -300,6 +391,10 @@ When translating the project, preserve:
 - idempotency guarantees;
 - authorization rules;
 - event schema and delivery assumptions;
+- Saga state, compensations, and recovery rules;
+- concurrency and stock-correctness invariants;
+- rate-limit identity keys and outage policies;
+- OAuth2/OIDC protocol and token-validation requirements;
 - timeout and retry budgets;
 - test intent and acceptance criteria;
 - operational signals and recovery procedures.
@@ -332,6 +427,11 @@ Avoid adding complexity merely to make the project look distributed.
 - Do not claim high availability without defining failure domains and
   recovery behavior.
 - Do not claim performance improvement without comparable measurements.
+- Do not claim production-scale capacity from a laptop benchmark.
+- Do not use rate limiting as a substitute for transactionally safe inventory
+  reservation.
+- Do not implement OAuth2/OIDC protocol flows or cryptography from scratch
+  when a mature authorization-server implementation fits the use case.
 - Do not treat line coverage or mutation score as proof of correct requirements.
 - Do not hide infrastructure limitations behind broad exception handling.
 

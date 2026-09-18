@@ -193,9 +193,10 @@ and why the implementation was chosen.
 Give every milestone its own reproducible E2E guide, named consistently (for
 example `docs/e2e/e2e-v<major>.<minor>.<patch>.md`) and indexed from a single
 `docs/e2e/README.md`. Each guide should describe **only what that milestone
-introduced**; when a later milestone supersedes earlier behavior, fold the
-older guide's still-relevant content into the newest one and remove the
-superseded guide rather than keeping two guides in disagreement.
+introduced**. Retain each historical guide as evidence for its release tag;
+add a newer guide when behavior changes, and clearly state the tag and
+assumptions each guide proves. Do not rewrite a historical guide's captured
+results to match later behavior.
 
 Use this structure for every guide:
 
@@ -303,6 +304,51 @@ For every cache, decide:
 - behavior during cache outage;
 - stampede or concurrency protection if required.
 
+### Saga and high-contention workflow policy
+
+Treat transactional outbox/inbox and a Saga as separate patterns. An outbox
+makes publication reliable and an inbox makes consumption idempotent; neither
+alone coordinates a long-running transaction or compensates completed work.
+
+For a Saga milestone, require:
+
+- durable coordinator/process state and explicit states for every step;
+- idempotent step commands and events;
+- timeout, retry, replay, and interruption-recovery behavior;
+- compensation for completed work when a later step fails;
+- E2E proof of success, every rejection path, failure after a completed step,
+  replay, and recovery.
+
+For a limited-stock or flash-sale workflow, require:
+
+- one authoritative atomic/transactionally safe reservation decision;
+- an idempotency key and bounded reservation expiry/release;
+- an invariant that successful reservations never exceed available stock;
+- coordinated parallel-request tests and a high-parallelism load run;
+- metrics for success, rejection, contention, expiry, and compensation;
+- proof that rate limiting is not the sole oversell-prevention mechanism.
+
+### Distributed rate-limiting policy
+
+If the project exposes a public gateway, use a distributed limiter when quotas
+must remain correct across replicas. A local in-memory counter is insufficient
+for shared per-user fairness.
+
+Require:
+
+- a shared Redis-backed token-bucket or equivalent algorithm;
+- `429 Too Many Requests` plus `Retry-After` after quota exhaustion;
+- route-specific keys: IP plus normalized username hash for login, IP for
+  anonymous reads, authenticated subject for writes, and subject plus
+  sale/product for flash-sale reservations;
+- exclusion or separate protection for health and metrics routes;
+- configured burst and refill behavior;
+- explicit, tested failure policy: fail closed for login and stock-protection
+  routes; allow ordinary reads to fail open only with documented justification;
+- allowed, rejected, and limiter-backend-error metrics; and
+- two-user fairness, cross-replica shared-quota, burst/refill, and
+  Compose/Kubernetes E2E evidence.
+
 ## Security checklist
 
 - Define the authentication mechanism and trust boundary.
@@ -314,6 +360,22 @@ For every cache, decide:
 - Return safe, stable errors without leaking internals.
 - Test 401, 403, valid access, and direct-boundary access where applicable.
 - Make security behavior observable without logging credentials or tokens.
+
+### OAuth2/OIDC authorization-server policy
+
+Distinguish a custom JWT issuer plus OAuth2 resource servers from a full
+OAuth2/OIDC authorization server. Do not call the former the latter.
+
+When a full authorization-server milestone is required, use a mature
+implementation rather than implementing protocol flows or cryptography from
+scratch. Require authorization-code flow with PKCE, registered clients, OIDC
+discovery and UserInfo, persistent signing keys with safe rotation,
+refresh-token rotation/reuse detection, and issuer/audience/scope validation
+at gateway and resource-server boundaries.
+
+Verify valid authorization, token expiry, wrong issuer/audience, insufficient
+scope, refresh rotation and reuse rejection, signing-key rotation overlap,
+restart persistence, and the Compose/Kubernetes authorization path.
 
 ## Performance case-study workflow
 
@@ -332,6 +394,13 @@ When adding a performance milestone:
 Do not compare incomparable runs or claim causality from a single unexplained
 number.
 
+For a resource-efficiency/capacity study, record host hardware, Docker or
+Kubernetes allocation, JVM/container limits, data shape, warm-up, concurrency,
+duration, and background activity. Compare CPU, process/container memory,
+heap/GC, connection pools, consumer lag, throughput, p50/p95/p99 latency,
+failures, and throttling/HPA data where available. Laptop results are valuable
+comparisons, not production-capacity claims.
+
 ## Operational readiness
 
 A production-oriented backend should make it possible to answer:
@@ -347,6 +416,23 @@ A production-oriented backend should make it possible to answer:
 
 Add health probes, structured logs, metrics, traces, resource limits, graceful
 shutdown, and recovery instructions as the project grows.
+
+## Cross-cutting regression gate
+
+After changing authentication, authorization, messaging, Saga behavior,
+concurrency, rate limiting, deployment, or resource limits, re-run every
+affected verification layer before completing the milestone:
+
+- full build, type-check, lint, and automated tests;
+- focused mutation testing where configured;
+- Compose public-entry-point E2E lifecycle;
+- Kubernetes/Helm gateway E2E lifecycle;
+- observability checks;
+- relevant load, concurrency, and resource-efficiency workloads.
+
+Update the relevant E2E guides with actual results. Do not carry a previous
+milestone's E2E success forward without retesting when the change can affect
+it.
 
 ## Branching and worktree strategy
 
