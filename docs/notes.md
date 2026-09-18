@@ -20,6 +20,7 @@ exist; configuring a library without proving its behavior is not sufficient.
 | Multithreading and concurrency | Virtual threads, scheduled outbox relay work, and connection-pool limits establish runtime foundations. Required completion: bounded Kafka listener concurrency, partition-order behavior, race-safe idempotency, coordinated parallel-request tests, and concurrency metrics. |
 | Extreme concurrency / flash sale | Required completion: limited-stock inventory reservation with one authoritative atomic decrement/conditional update or equivalent transactionally safe reservation, idempotency keys, reservation expiry/release, oversell prevention, contention controls, and a high-parallelism E2E/load test proving successful reservations never exceed stock. |
 | Caching | product-service uses Redis cache-aside reads, TTL, evict-on-write invalidation, cache miss/hit E2E tests, and a documented fail-open Redis-outage policy. |
+| Distributed rate limiting | Required completion: gateway-level Redis-backed token buckets shared by all gateway replicas. Limit login by IP plus normalized username hash, anonymous reads by IP, authenticated writes by JWT subject, and flash-sale reservations by subject plus sale/product. Return `429` and `Retry-After`, exclude health/metrics, emit allowed/rejected/error metrics, test burst/refill and two-user fairness, and explicitly test Redis outage policy: fail closed for login and flash-sale reservation; fail open only for ordinary catalog reads if documented. |
 | Resource efficiency and capacity | Required completion: a reproducible local-laptop case study, not a production-capacity claim. Record hardware, Docker Desktop/minikube allocation, JVM/container limits, dataset, warm-up, VUs, duration, and background load. Under the same conditions, compare CPU, container/process memory, GC, HikariCP, Kafka lag, throughput, p50/p95/p99, failures, and Kubernetes CPU throttling/HPA data where available before and after one targeted improvement. |
 
 ## Authentication and authorization coverage
@@ -69,6 +70,27 @@ also prove:
 | Messaging and distributed transactions | Kafka with **outbox pattern** for reliable event publishing; orchestrated Saga with explicit compensations for long-running order fulfillment |
 | Redis (bonus) | Catalog caching, rate limiting |
 | Kubernetes/Cloud (bonus) | Helm chart, probes, HPA, Minikube/kind or free-tier cloud |
+
+## Distributed rate-limiting verification
+
+The rate-limiting milestone is complete only when the gateway demonstrates:
+
+- a configured burst allowance followed by sustained token refill;
+- `429 Too Many Requests` with `Retry-After` after the applicable quota is
+  exhausted;
+- independent quotas for two authenticated users;
+- a quota that remains shared after traffic is routed through separate gateway
+  replicas;
+- the intended identity key for each route type without retaining raw
+  passwords or credentials;
+- explicit Redis failure behavior: reject login and flash-sale requests when
+  fairness/correctness cannot be enforced, while ordinary catalog reads may
+  fail open only when that policy is explicitly justified and observable;
+- Prometheus metrics for permitted, rejected, and limiter-backend-error
+  requests; and
+- Docker Compose and Kubernetes E2E evidence, including a flash-sale load run
+  that shows the limiter protects downstream resources without violating stock
+  correctness.
 
 ## Architecture
 
