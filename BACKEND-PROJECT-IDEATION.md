@@ -81,6 +81,9 @@ testability, observability, performance evidence, and operational readiness.
 ### Quality engineering
 
 - Unit tests for domain and application policies.
+- Test-first development for correctness-critical invariants and failure paths;
+  use Red-Green-Refactor and retain the evidence rather than claiming TDD for
+  work that was not developed that way.
 - Contract or API tests for service boundaries.
 - Integration tests for persistence, messaging, and cache behavior.
 - End-to-end tests through the real public entry point.
@@ -183,6 +186,24 @@ an invariant that successful reservations never exceed available stock.
 Prove the invariant with a coordinated high-parallelism test and a
 representative load run. Rate limiting protects capacity and fairness; it must
 not be the mechanism relied on for stock correctness.
+
+### Test-first edge-case design
+
+Use TDD selectively for business rules where an edge-case failure can charge
+twice, oversell stock, leak authorization, violate fairness, or leave a
+distributed workflow unrecovered:
+
+1. Express the invariant or failure contract.
+2. Write a failing focused unit, integration, or acceptance test.
+3. Implement the smallest behavior that passes.
+4. Refactor with all tests green.
+5. Record the invariant and observed edge-case result in the E2E guide.
+
+Use this approach for Saga compensation/recovery, idempotency races,
+flash-sale stock, distributed rate limits, and OAuth2/OIDC security failures.
+Do not require strict TDD for declarative infrastructure, dashboards, or
+framework wiring; validate those with executable smoke, integration, and E2E
+tests instead.
 
 ## Milestone roadmap
 

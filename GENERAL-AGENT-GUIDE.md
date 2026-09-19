@@ -257,6 +257,26 @@ Use a balanced test pyramid:
 - **End-to-end tests:** critical workflows through the real entry point.
 - **Architecture tests:** dependency direction and module boundaries.
 
+### Test-first edge-case policy
+
+Use Red-Green-Refactor selectively for correctness-critical business behavior,
+not as a retrospective claim about every line of a project. Before implementing
+a rule that can affect money, stock, authorization, fairness, or distributed
+recovery:
+
+1. State the invariant and the failure contract.
+2. Write a focused failing unit, integration, or acceptance test.
+3. Implement the smallest behavior that passes.
+4. Refactor with the complete relevant suite green.
+5. Record the invariant, edge case, expected result, and observed result in
+   the milestone E2E guide.
+
+Apply this policy at minimum to Saga compensation and recovery, idempotency
+races, limited-stock flash sales, distributed rate limits, and OAuth2/OIDC
+authorization failures. Use executable smoke, integration, and E2E checks
+rather than forced unit-level TDD for declarative infrastructure, deployment
+manifests, dashboards, and third-party framework wiring.
+
 ### Coverage interpretation
 
 Line coverage indicates which code executed. It does not show whether the
