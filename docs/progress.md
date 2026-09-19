@@ -95,6 +95,7 @@ Tags point at the branch tip when the milestone was verified and documented — 
 
 ## 🔜 Next up (priority order)
 
+- [ ] Test-first edge-case policy: before implementing the following correctness-critical milestones, define their business invariants and write failing focused behavior tests first; record edge-case results in every new E2E guide. Do not claim existing completed milestones used universal strict TDD.
 - [ ] Saga orchestration: introduce durable order-process state to coordinate inventory reservation → payment → fulfillment; support idempotent step commands/events, retries/timeouts, and compensations (release inventory, refund/reverse payment); E2E-verify success, inventory rejection, payment rejection, post-payment fulfillment failure, replay, and recovery
 - [ ] CI/CD delivery: GitHub Actions publishes immutable service images to GHCR; a protected, approved deployment workflow performs a pinned-image Helm upgrade to a configured staging cluster, smoke-tests the gateway, and documents rollback
 - [ ] Multithreading/concurrency: configure bounded Kafka listener concurrency while preserving per-key ordering; prove transactional-inbox and payment idempotency under coordinated parallel requests; record virtual-thread, listener, and HikariCP-pool metrics

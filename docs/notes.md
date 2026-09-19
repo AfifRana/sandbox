@@ -20,6 +20,7 @@ exist; configuring a library without proving its behavior is not sufficient.
 | Multithreading and concurrency | Virtual threads, scheduled outbox relay work, and connection-pool limits establish runtime foundations. Required completion: bounded Kafka listener concurrency, partition-order behavior, race-safe idempotency, coordinated parallel-request tests, and concurrency metrics. |
 | Extreme concurrency / flash sale | Required completion: limited-stock inventory reservation with one authoritative atomic decrement/conditional update or equivalent transactionally safe reservation, idempotency keys, reservation expiry/release, oversell prevention, contention controls, and a high-parallelism E2E/load test proving successful reservations never exceed stock. |
 | Caching | product-service uses Redis cache-aside reads, TTL, evict-on-write invalidation, cache miss/hit E2E tests, and a documented fail-open Redis-outage policy. |
+| Test-driven edge-case design | Required policy for upcoming correctness-critical behavior: use Red-Green-Refactor at the domain/application or acceptance-test boundary. Write the failing test for the invariant or failure path first, implement the smallest behavior to pass, then refactor. Preserve the invariant and E2E evidence; do not retroactively claim every existing feature used strict TDD. |
 | Distributed rate limiting | Required completion: gateway-level Redis-backed token buckets shared by all gateway replicas. Limit login by IP plus normalized username hash, anonymous reads by IP, authenticated writes by JWT subject, and flash-sale reservations by subject plus sale/product. Return `429` and `Retry-After`, exclude health/metrics, emit allowed/rejected/error metrics, test burst/refill and two-user fairness, and explicitly test Redis outage policy: fail closed for login and flash-sale reservation; fail open only for ordinary catalog reads if documented. |
 | Resource efficiency and capacity | Required completion: a reproducible local-laptop case study, not a production-capacity claim. Record hardware, Docker Desktop/minikube allocation, JVM/container limits, dataset, warm-up, VUs, duration, and background load. Under the same conditions, compare CPU, container/process memory, GC, HikariCP, Kafka lag, throughput, p50/p95/p99, failures, and Kubernetes CPU throttling/HPA data where available before and after one targeted improvement. |
 
@@ -55,6 +56,32 @@ also prove:
 - persistent users, registered clients, grants, and signing-key metadata
   survive an auth-service restart;
 - the Compose and Kubernetes paths run the same critical authorization flow.
+
+## Test-first edge-case policy
+
+Use test-driven development selectively where a behavioral mistake would cause
+incorrect money, stock, authorization, fairness, or recovery outcomes. This
+project already has layered automated tests and focused mutation testing; it
+does not claim that every existing feature was developed with strict TDD.
+
+For each upcoming correctness-critical rule:
+
+1. State the business invariant and failure contract in the milestone plan.
+2. Write a failing focused unit, integration, or acceptance test first.
+3. Implement the smallest behavior that makes the test pass.
+4. Refactor only with the test suite green.
+5. Add an **Edge cases verified** table to the milestone E2E guide with the
+   invariant, scenario, expected result, and observed result.
+
+The minimum test-first scenarios are:
+
+| Milestone | Invariant and edge cases |
+|---|---|
+| Saga | Every completed step is either confirmed or compensated; test duplicate steps, timeout, retry, fulfillment failure after payment, replay, and restart recovery. |
+| Concurrency | One idempotency key produces one effective result; test coordinated parallel requests, duplicate events, and ordering where required. |
+| Flash sale | Successful reservations never exceed stock; test last-unit races, duplicate reservation keys, expiry/release, payment-failure release, and high-parallelism contention. |
+| Rate limiting | Quotas remain fair and shared across replicas; test burst exhaustion, refill, two-user isolation, `429`/`Retry-After`, and Redis outage policy. |
+| OAuth2/OIDC | Invalid authorization is rejected safely; test bad PKCE, expiry, wrong issuer/audience, insufficient scope, refresh-token reuse, and signing-key rotation. |
 
 ## Target role checklist → what to build
 
