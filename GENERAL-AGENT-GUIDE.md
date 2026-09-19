@@ -10,6 +10,57 @@ project regardless of programming language or framework.
 The agent is expected to deliver working, verified, documented increments.
 It should not merely propose code or report that a build passes.
 
+## Guardrail checklist (read first)
+
+Treat this as the minimum bar for every change, regardless of milestone or
+language. Later sections give full detail; this list is the fast pre-flight
+and pre-commit check.
+
+Before starting:
+
+- [ ] Read the current tracker/handoff, then verify it against the actual
+  working tree and Git history rather than trusting it blindly.
+- [ ] Identify the next incomplete milestone and its acceptance criteria from
+  the authoritative tracker, not from memory of a prior session.
+- [ ] Ask one focused question only when a design decision materially changes
+  the implementation; otherwise state the assumption and proceed.
+
+While implementing:
+
+- [ ] Implement the complete vertical slice; do not stop at a partial layer.
+- [ ] Make errors explicit; never use silent fallbacks, invalid-input
+  defaults, or success-shaped error responses.
+- [ ] Make surgical, root-cause changes; do not carry out unrelated refactors.
+- [ ] Preserve existing architecture boundaries, types, and idioms.
+- [ ] Hold the change to SOLID and clean-code discipline (single
+  responsibility, open/closed via strategy/port implementations, no
+  duplicated business knowledge, no speculative complexity).
+- [ ] Apply the test-first edge-case policy to correctness-critical behavior
+  (money, stock, authorization, fairness, distributed recovery) before
+  writing the implementation.
+
+Before claiming a milestone complete:
+
+- [ ] Verify with the real system, not just a build or a mock-only test.
+- [ ] Capture concrete evidence: commands, counts, responses, timings. A
+  negative or inconclusive result is still valid evidence; never present an
+  unverified expectation as a fact.
+- [ ] Update only the directly related documentation (README, progress
+  tracker, milestone E2E guide, ADR when a real trade-off was made).
+- [ ] Do not describe a partial capability as fully delivered — for example,
+  outbox/inbox is not a Saga, and JWT/JWKS validation is not a full
+  OAuth2/OIDC authorization server.
+
+Before commit/tag:
+
+- [ ] Inspect the full staged diff; exclude secrets, generated reports, and
+  temporary files.
+- [ ] Use the repository's commit convention and required trailers.
+- [ ] Tag only after code, tests, E2E evidence, and docs are all complete, and
+  only on the documentation-inclusive tip.
+- [ ] Never amend, force-push, skip hooks, or overwrite a tag without
+  explicit user approval.
+
 ## Initial briefing
 
 Before changing anything, the agent should:
@@ -55,6 +106,20 @@ Follow the project's existing architecture and naming conventions. Prefer
 existing helpers, abstractions, and patterns over duplicating logic. Keep
 business policy independent from transport, persistence, and infrastructure
 where the architecture calls for that separation.
+
+### Apply SOLID and clean-code discipline
+
+Every change should hold up under SOLID review: single responsibility per
+class/function, extension via new implementations rather than edited
+conditionals (open/closed), substitutable port implementations (Liskov),
+narrow purpose-built interfaces (interface segregation), and dependencies
+pointing inward toward domain/application code (dependency inversion). Write
+clean code: intention-revealing names, small functions with one level of
+abstraction, guard clauses instead of deep nesting, no magic numbers/strings,
+and comments that explain *why* rather than restating the code. Remove real
+duplication (DRY) without forcing a shared abstraction onto incidental
+similarity, and prefer the simplest design that satisfies the current,
+verified requirement (KISS/YAGNI) over speculative extensibility.
 
 ### Make errors explicit
 

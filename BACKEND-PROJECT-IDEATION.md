@@ -41,6 +41,48 @@ testability, observability, performance evidence, and operational readiness.
 - Strategy or policy abstractions where behavior varies by business option.
 - Clear ownership of authoritative data and decisions.
 
+### Code quality and design principles
+
+Treat these as demonstrated engineering discipline, not slogans. Be ready to
+point at a concrete class or module for each one during an interview.
+
+- **Single Responsibility** — a use case orchestrates one business operation;
+  a domain type owns one invariant family; a controller only translates
+  transport to application calls.
+- **Open/Closed** — new payment methods or pricing rules are added by
+  implementing a strategy/policy interface, not by editing existing
+  conditionals.
+- **Liskov Substitution** — every implementation of a port (repository,
+  strategy, gateway client) is substitutable without the caller needing to
+  know which implementation is active.
+- **Interface Segregation** — ports expose only the operations a consumer
+  actually needs; avoid a single fat repository or service interface that
+  forces unrelated dependencies on every implementer.
+- **Dependency Inversion** — application/domain code depends on ports it
+  owns; adapters (JPA, Kafka, HTTP clients) depend inward on those ports.
+  This is the concrete mechanism behind the hexagonal/ports-and-adapters
+  boundary already used in this project.
+- **Clean Code** — intention-revealing names, small functions with one level
+  of abstraction, guard clauses over nested conditionals, no magic
+  numbers/strings, and comments that explain *why*, not *what* the code
+  already says.
+- **DRY without premature abstraction** — remove real duplication of
+  knowledge, but do not force a shared abstraction across code that merely
+  looks similar today and may diverge for unrelated reasons.
+- **KISS and YAGNI** — prefer the simplest design that satisfies the current,
+  verified requirement; do not add extensibility for a hypothetical future
+  requirement that is not on the roadmap.
+- **Separation of concerns** — business policy, transport, persistence, and
+  infrastructure concerns stay in distinct layers so each can be tested and
+  changed independently.
+- **Law of Demeter / low coupling** — collaborators talk to their immediate
+  dependencies, not to a dependency's internals, keeping change radius small.
+
+Interview framing: state the principle, name the concrete pattern in this
+codebase that embodies it (e.g. "Strategy pattern for payment methods is
+Open/Closed in practice"), and be ready to describe the alternative design it
+avoided and why.
+
 ### API design
 
 - Resource-oriented HTTP APIs with consistent naming and status codes.
