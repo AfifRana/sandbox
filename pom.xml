@@ -18,9 +18,8 @@
         <module>services/auth-service</module>
         <module>services/api-gateway</module>
         <module>services/inventory-service</module>
-        <!-- TODO: re-enable once scaffolded -->
-        <!-- <module>services/fulfillment-service</module> -->
-        <!-- <module>services/saga-orchestrator-service</module> -->
+        <module>services/fulfillment-service</module>
+        <module>services/saga-orchestrator-service</module>
     </modules>
 
     <properties>

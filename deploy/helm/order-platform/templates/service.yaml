@@ -12,6 +12,9 @@
   "notification" (dict "port" 8080)
   "auth"         (dict "port" 8080)
   "gateway"      (dict "port" 8080)
+  "inventory"    (dict "port" 8080)
+  "fulfillment"  (dict "port" 8080)
+  "saga"         (dict "port" 8080)
 -}}
 {{- range $key, $svc := .Values.services }}
 {{- $cfg := index $svcMap $key }}
@@ -93,7 +96,7 @@ spec:
             - name: AUTH_JWKS_URI
               value: http://{{ include "order-platform.fullname" $root }}-auth:8080/oauth2/jwks
             {{- end }}
-            {{- if has $key (list "order" "product" "payment") }}
+            {{- if has $key (list "order" "product" "payment" "inventory" "fulfillment" "saga") }}
             - name: DB_URL
               value: jdbc:oracle:thin:@{{ $root.Values.infra.oracleHost }}:{{ $root.Values.infra.oraclePort }}/FREEPDB1
             - name: DB_USER
@@ -104,7 +107,7 @@ spec:
                   name: {{ include "order-platform.fullname" $root }}-db
                   key: password
             {{- end }}
-            {{- if has $key (list "order" "payment" "notification") }}
+            {{- if has $key (list "order" "payment" "notification" "inventory" "fulfillment" "saga") }}
             - name: KAFKA_BROKERS
               value: {{ $root.Values.infra.kafkaBrokers }}
             {{- end }}

@@ -1,6 +1,6 @@
-package com.example.inventory.adapter.out.messaging;
+package com.example.fulfillment.adapter.out.messaging;
 
-import com.example.inventory.application.port.InventoryEventOutbox;
+import com.example.fulfillment.application.port.FulfillmentEventOutbox;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -9,17 +9,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Transactional outbox for inventory saga replies: append in the same DB
- * transaction as the reservation/release decision, then relay to Kafka
- * asynchronously. Mirrors order-service's and payment-service's outbox.
+ * Transactional outbox for fulfillment saga replies, mirroring
+ * inventory-service's InventoryOutboxRelay exactly.
  */
 @Component
-public class InventoryOutboxRelay implements InventoryEventOutbox {
+public class FulfillmentOutboxRelay implements FulfillmentEventOutbox {
 
-    private final InventoryOutboxEntryRepository repository;
+    private final SpringDataFulfillmentOutboxRepository repository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    public InventoryOutboxRelay(InventoryOutboxEntryRepository repository,
+    public FulfillmentOutboxRelay(SpringDataFulfillmentOutboxRepository repository,
             KafkaTemplate<String, String> kafkaTemplate) {
         this.repository = repository;
         this.kafkaTemplate = kafkaTemplate;
@@ -27,26 +26,20 @@ public class InventoryOutboxRelay implements InventoryEventOutbox {
 
     @Override
     @Transactional
-    public void appendReserved(UUID sagaId, UUID orderId) {
-        append(sagaId, "inventory.reserved", "{\"sagaId\":\"%s\",\"orderId\":\"%s\"}".formatted(sagaId, orderId));
+    public void appendShipped(UUID sagaId, UUID orderId) {
+        append(sagaId, "fulfillment.shipped", "{\"sagaId\":\"%s\",\"orderId\":\"%s\"}".formatted(sagaId, orderId));
     }
 
     @Override
     @Transactional
-    public void appendRejected(UUID sagaId, UUID orderId, String reason) {
-        append(sagaId, "inventory.reservation.rejected",
+    public void appendFailed(UUID sagaId, UUID orderId, String reason) {
+        append(sagaId, "fulfillment.failed",
                 "{\"sagaId\":\"%s\",\"orderId\":\"%s\",\"reason\":\"%s\"}"
                         .formatted(sagaId, orderId, escape(reason)));
     }
 
-    @Override
-    @Transactional
-    public void appendReleased(UUID sagaId, UUID orderId) {
-        append(sagaId, "inventory.released", "{\"sagaId\":\"%s\",\"orderId\":\"%s\"}".formatted(sagaId, orderId));
-    }
-
     private void append(UUID sagaId, String type, String payload) {
-        InventoryOutboxEntry entry = new InventoryOutboxEntry();
+        FulfillmentOutboxEntry entry = new FulfillmentOutboxEntry();
         entry.setId(UUID.randomUUID());
         entry.setAggregateId(sagaId);
         entry.setType(type);
@@ -65,7 +58,7 @@ public class InventoryOutboxRelay implements InventoryEventOutbox {
             // payloads would force fragile topic-based type inference.
             String envelope = "{\"type\":\"%s\",\"payload\":%s}"
                     .formatted(entry.getType(), entry.getPayload());
-            kafkaTemplate.send("inventory-events", entry.getAggregateId().toString(), envelope);
+            kafkaTemplate.send("fulfillment-events", entry.getAggregateId().toString(), envelope);
             entry.setPublished(true);
         });
     }

@@ -59,6 +59,18 @@ services:
     name: api-gateway
     replicaCount: 1
     nodePort: 30000
+  inventory:
+    name: inventory-service
+    replicaCount: 1
+    nodePort: 30085
+  fulfillment:
+    name: fulfillment-service
+    replicaCount: 1
+    nodePort: 30086
+  saga:
+    name: saga-orchestrator-service
+    replicaCount: 1
+    nodePort: 30087
 
 hpa:
   enabled: true
