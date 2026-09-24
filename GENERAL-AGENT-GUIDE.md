@@ -61,6 +61,13 @@ Before commit/tag:
 - [ ] Never amend, force-push, skip hooks, or overwrite a tag without
   explicit user approval.
 
+After commit/tag (or after a completed E2E run that is not tied to a
+milestone):
+
+- [ ] Tear down the runtime: scale deployments to 0, `minikube stop`, and
+  `docker compose stop` the infra containers (see "Tear down the runtime"
+  in the milestone workflow).
+
 ## Initial briefing
 
 Before changing anything, the agent should:
@@ -308,6 +315,48 @@ inclusive milestone tip.
 
 Never amend a commit, force-push, skip hooks, or overwrite a tag without
 explicit approval.
+
+### 9. Tear down the runtime after E2E or milestone completion
+
+Once the E2E run has passed and its evidence is captured — or once the
+milestone is committed, tagged, and documented — shut down the runtime the
+verification started. A demo laptop should not keep an 11-JVM Kubernetes node
+plus Oracle/Kafka containers burning CPU and memory between work sessions.
+
+Standard teardown (run from the repository root):
+
+```powershell
+# 1. Stop all Kubernetes workloads (removes JVMs; keeps images and release data)
+kubectl scale deployment --all -n order-platform --replicas=0
+
+# 2. Stop the cluster (keeps images, volumes, and release metadata; fast to resume)
+minikube stop
+
+# 3. Stop host infrastructure (Oracle, Kafka, Redis, observability)
+docker compose stop oracle kafka redis prometheus grafana otel-collector jaeger
+```
+
+Notes:
+
+- Prefer `minikube stop` over `minikube delete`: `stop` preserves the loaded
+  images, Oracle volume, and Helm release so the next session only needs
+  `minikube start`, `minikube update-context`, and
+  `docker compose up -d oracle kafka ...`.
+- Scaling deployments to zero before stopping matters on the 8 GB node: pods
+  that come back automatically on cluster restart immediately re-enter their
+  crash-loop boot storm.
+- Use `minikube delete` only when the user explicitly asks for a clean slate;
+  it discards images, volumes, and release metadata and forces a full reload.
+- Restart after teardown follows the "Runtime environment" section of the
+  handoff file: `minikube start`, `minikube update-context`, then
+  `docker compose up -d` with `PROMETHEUS_CONFIG` and
+  `KAFKA_EXTERNAL_ADVERTISED_HOST` set in the same shell.
+- Port-forwards (`kubectl port-forward`) die with the cluster; note that they
+  must be re-established in the next session.
+- Do not tear down before the milestone is committed: the runtime state is
+  part of the verification evidence, and re-verifying from scratch is
+  expensive on this node.
+
 
 ## Testing and quality policy
 

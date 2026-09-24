@@ -264,6 +264,42 @@ kubectl scale deployment/demo-order -n order-platform --replicas=0
 kubectl scale deployment/demo-order -n order-platform --replicas=2
 ```
 
+### Shutdown after E2E or milestone completion (required)
+
+When an E2E run is finished and its evidence is captured, or after a
+milestone is committed/tagged, tear the runtime down. Do not leave the
+11-JVM Kubernetes node plus Oracle/Kafka containers running between
+sessions — it starved the host during the v0.11.0 work and caused
+repeated apiserver timeouts and node NotReady events.
+
+```powershell
+# 1. Stop all Kubernetes workloads (prevents crash-loop boot storm on
+#    next start; keeps images and release data)
+kubectl scale deployment --all -n order-platform --replicas=0
+
+# 2. Stop the cluster (keeps loaded images, Oracle volume, Helm release;
+#    much faster to resume than minikube delete)
+minikube stop
+
+# 3. Stop host infrastructure
+docker compose -f 'D:\Afif\Project\Exploration\sandbox\docker-compose.yml' stop `
+  oracle kafka redis prometheus grafana otel-collector jaeger
+
+# 4. Kill any kubectl port-forward processes still bound to host ports
+#    (30000/30084/30087 etc.) — they die with the cluster but can linger
+Get-NetTCPConnection -LocalPort 30000,30084,30087 -State Listen -ErrorAction SilentlyContinue |
+  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
+`minikube delete` is only for an explicit clean-slate request from the
+user: it discards loaded images, the Oracle volume, and the Helm release,
+forcing a full `docker compose build` + `minikube image load` cycle.
+
+Restart after teardown = the two blocks above in reverse: `minikube start`
++ `minikube update-context`, then the infra `docker compose up -d` with
+both env vars set in the same shell, then re-establish port-forwards.
+
+
 ## Useful commands
 
 Targeted tests:
