@@ -14,15 +14,29 @@ graph LR
     GW --> ORD[order-service]
     GW --> PROD[product-service]
     GW --> PAY[payment-service]
+    Client -.->|direct, no gateway route yet| SAGA[saga-orchestrator-service]
     ORD --> O[(Oracle DB)]
     PROD --> O
-    PROD --> R[(Redis cache)]
     PAY --> O
+    SAGA --> O
+    PROD --> R[(Redis cache)]
     ORD -->|outbox| K[(Kafka)]
     PAY -->|outbox| K
     K --> ORD
     K --> NOTIF[notification-service]
+    SAGA -->|commands| K
+    K --> INV[inventory-service]
+    K --> FUL[fulfillment-service]
+    INV --> O
+    FUL --> O
+    K -->|replies| SAGA
 ```
+
+Only the original six services run under Docker Compose; inventory-service,
+fulfillment-service, and saga-orchestrator-service are part of the Kubernetes
+deployment ([guide](docs/e2e/e2e-v0.11.0.md)). The gateway does not route to
+the saga service yet, so a saga is started by calling its NodePort directly
+(30087).
 
 ## Services
 
@@ -34,6 +48,15 @@ graph LR
 | product-service | 8081 | Product catalog, Redis cache-aside |
 | payment-service | 8082 | Strategy-pattern payments, `payment.paid` events |
 | notification-service | 8083 | Consumes order events, notifies customers |
+| inventory-service | 30085 (K8s) | Stock ledger, `inventory-commands` consumer, `GET /api/v1/inventory/{productId}` |
+| fulfillment-service | 30086 (K8s) | Shipment ledger, `fulfillment-commands` consumer (no REST API) |
+| saga-orchestrator-service | 30087 (K8s) | Durable order-process coordinator: `POST /api/v1/sagas`, command outbox, reply handling, compensation, restart recovery |
+
+The first six ports are Compose host mappings. The saga trio is deployed only
+through Helm, Kubernetes-only, each listening on container port 8080 and
+exposed on the NodePorts shown. Inventory reads are `permitAll` on the service
+itself (internal-network only); saga start requires ROLE_CUSTOMER or
+ROLE_ADMIN.
 
 Infrastructure: Oracle 23ai Free, Kafka (KRaft), Redis, plus observability —
 Prometheus (:9090), Grafana (:3000, admin/admin), Jaeger (:16686); the OTel
@@ -49,10 +72,23 @@ collector is internal-only.
   events in a transactional inbox (`processed_events`, claim + state change in
   one DB transaction); notification-service uses Redis SETNX with TTL and
   fails open on Redis outage.
-- **Saga orchestration (planned)**: the current payment event flow is
-  intentionally not presented as a Saga. A later milestone will coordinate
-  inventory reservation, payment, and fulfillment with durable process state
-  and compensating actions.
+- **Saga orchestration (partially delivered, v0.11.0)**: `saga-orchestrator-service`
+  owns a durable order process (`saga_process`) that reserves inventory and
+  requests fulfillment. Each state transition writes the saga row and the
+  outgoing command's outbox row in one transaction; handlers ignore duplicate
+  or late replies, a `POST /api/v1/sagas` call starts a process, and
+  `recoverPending()` re-issues the pending command on startup and every 30s so
+  a crash between decision and publish (or a lost reply) self-heals.
+  A fulfillment failure after a successful reservation compensates by
+  releasing the reservation (`INVENTORY_RESERVED → COMPENSATED`).
+  **Payment coordination and refund/reverse compensation are not implemented
+  yet** — payment-service has no reversal capability, so the saga coordinates
+  inventory and fulfillment only.
+- **Explicit event envelopes**: inventory/fulfillment outbox relays publish
+  `{"type":"...","payload":{...}}` so the coordinator dispatches on a real
+  discriminator. A bare payload makes a stock rejection indistinguishable
+  from a reservation, which silently completes an order that should have been
+  rejected; the topic-based fallback exists only for legacy messages.
 - **Resilience4j on inter-service calls**: order-service prices orders from
   the catalog (client-supplied prices are not trusted), wrapped in retry +
   circuit breaker. Unknown product fails closed (400); catalog outage fails
@@ -152,13 +188,13 @@ item is required work, not an optional limitation.
 | Synchronous programming | Gateway-routed REST commands and queries, request validation, transactional Oracle writes, and synchronous order-to-catalog/payment interactions with explicit error contracts | Complete |
 | Asynchronous programming | Transactional outbox relays publish Kafka events; payment and notification consumers process at-least-once delivery idempotently | Complete |
 | Design patterns | Hexagonal architecture, repository ports/adapters, payment Strategy dispatch, transactional outbox, transactional inbox, cache-aside, and circuit-breaker/retry policies | Complete |
-| Saga pattern | An orchestrated order workflow will reserve inventory, charge payment, and request fulfillment; failures will compensate completed steps by releasing inventory and refunding/reversing payment where appropriate | Required |
-| Containerization | Multi-stage, non-root service images and a Docker Compose environment for Oracle, Kafka, Redis, observability, and all services | Complete |
+| Saga pattern | An orchestrated order workflow reserves inventory and requests fulfillment through a durable coordinator with compensation, replay, and restart recovery (v0.11.0, [guide](docs/e2e/e2e-v0.11.0.md)). Remaining: charge payment inside the process and refund/reverse it on later-step failure | Partial |
+| Containerization | Multi-stage, non-root service images; Docker Compose environment for Oracle, Kafka, Redis, observability, and the six original services (the saga trio is Kubernetes-only) | Complete |
 | Orchestration | Helm chart, probes, resource limits, HPA, and a minikube deployment verified through the in-cluster gateway | Complete |
 | CI/CD | GitHub Actions must verify builds/tests and publish immutable images to GHCR; an approved deployment workflow must deploy a pinned image to a configured staging cluster, run smoke tests, and support rollback | Required |
 | Multithreading and concurrency | Virtual threads and scheduled outbox work are enabled; complete this with bounded Kafka-listener concurrency, race-safe idempotent processing, deterministic concurrent-request tests, and a flash-sale inventory-reservation workflow | Required |
 | Caching | Redis cache-aside product reads with TTL, evict-on-write invalidation, and an explicit fail-open outage policy | Complete |
-| Test-driven edge-case design | Use Red-Green-Refactor for upcoming correctness-critical rules; preserve the business invariant, failure path, test level, and resulting evidence rather than claiming universal strict TDD retroactively | Required |
+| Test-driven edge-case design | Red-Green-Refactor is applied to correctness-critical rules from v0.11.0 onward (the saga milestone wrote its 9 failure-first state-machine tests before the implementation); preserve the business invariant, failure path, test level, and resulting evidence rather than claiming universal strict TDD retroactively | Partial |
 | Distributed rate limiting | Apply Redis-backed token-bucket limits at the gateway with route-specific identities, explicit Redis-outage policy, `429` responses, fairness across gateway replicas, metrics, and Docker Compose/Kubernetes proof | Required |
 | OAuth2/OIDC authorization server | Replace the custom issuer with a standards-based authorization server supporting authorization-code flow with PKCE, OIDC discovery and UserInfo, registered clients, persistent signing keys with rotation, refresh-token rotation, and issuer/audience/scope validation by resource servers | Required |
 | Resource efficiency and capacity | Run a repeatable, laptop-sized workload under fixed Docker Compose or minikube limits; capture CPU, memory, GC, connection-pool, Kafka-lag, throughput, and latency baselines before and after one measured improvement | Required |
@@ -169,8 +205,9 @@ item is required work, not an optional limitation.
 - [x] Kubernetes Helm chart with HPA — deployed to minikube, E2E verified ([guide](docs/e2e/e2e-v0.8.0.md))
 - [x] k6 load tests + SQL EXPLAIN PLAN case study ([guide](docs/e2e/e2e-v0.9.0.md))
 - [x] PIT mutation testing for order-service, payment-service, and product-service ([guide](docs/e2e/e2e-v0.10.0.md))
-- [ ] Test-first edge-case policy: for the Saga, concurrency, flash-sale, rate-limiting, and OAuth2/OIDC milestones, write failing behavior tests before implementation for correctness invariants and failure paths; record the invariant and verified edge cases in the milestone E2E guide without claiming that earlier work used universal strict TDD
-- [ ] Saga orchestration: add durable order-process state for inventory reservation → payment → fulfillment; implement idempotent commands/events, timeouts/retries, and compensations (release inventory and refund/reverse payment); E2E-verify successful, rejected, and post-payment failure paths
+- [x] Saga orchestration (inventory reservation → fulfillment) with a durable coordinator, idempotent commands/events, inventory-release compensation, replay, and restart recovery ([guide](docs/e2e/e2e-v0.11.0.md)) — payment coordination and refund/reverse compensation remain
+- [x] Test-first edge-case policy: the Saga milestone followed Red-Green-Refactor (9 failure-first `OrderSagaUseCaseTest` cases covering duplicate steps, compensation, replay, and recovery); continue applying it to the concurrency, flash-sale, rate-limiting, and OAuth2/OIDC milestones and record the verified edge cases in each new E2E guide — do not claim earlier work used universal strict TDD
+- [ ] Payment-coordinated saga completion: move the payment step inside the durable process and implement refund/reverse compensation so a post-payment failure restores the charged amount
 - [ ] CI/CD delivery: publish immutable multi-service images to GHCR; add an approved, pinned-image Helm deployment workflow for a configured staging cluster; verify smoke tests and documented rollback
 - [ ] Multithreading/concurrency: configure bounded Kafka consumer concurrency with partition-order guarantees; prove race-safe idempotent payment/event processing with coordinated concurrent-request tests; capture virtual-thread, listener, and database-pool metrics
 - [ ] Flash-sale inventory reservation: implement limited-stock reservation with an authoritative atomic inventory decrement, idempotency keys, reservation expiry/release, oversell prevention, contention controls, and a high-parallelism E2E/load test proving that successful reservations never exceed available stock
@@ -188,3 +225,9 @@ item is required work, not an optional limitation.
 - No per-customer authorization on order reads (any authenticated
   CUSTOMER/ADMIN can read any order by id)
 - Notification consumer logs instead of sending real notifications
+- The saga coordinates inventory and fulfillment only. Payment is still a
+  separate synchronous step outside the process, and there is no refund or
+  reversal compensation because payment-service has no such capability yet.
+  Until that lands, a failure after payment cannot restore the charged amount.
+- The saga is started by a direct `POST /api/v1/sagas` call; order-service
+  does not yet drive saga start as part of its own order flow.
