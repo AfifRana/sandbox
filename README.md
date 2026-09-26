@@ -181,7 +181,8 @@ mvn clean                     # or: find . -type d -name target -prune -exec rm 
 
 This platform must demonstrate each backend concept below end to end. A checked
 item has reproducible implementation and verification evidence; an unchecked
-item is required work, not an optional limitation.
+item is required work, not an optional limitation. **Partial** means a verified
+slice is delivered and the remaining required scope is named in the row.
 
 | Topic | How this project demonstrates it | Completion status |
 |---|---|---|
