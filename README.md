@@ -106,8 +106,9 @@ collector is internal-only.
   consent, client registration, token revocation/introspection, or persistent
   signing-key rotation.
 - **Observability**: every service exposes Prometheus metrics (scraped on the
-  internal Docker network, never through the gateway) and ships OTLP traces
-  through an OpenTelemetry collector to Jaeger. Grafana is provisioned with
+  internal Docker network in Compose mode, on the service NodePorts in
+  Kubernetes mode, never through the gateway) and ships OTLP traces through
+  an OpenTelemetry collector to Jaeger. Grafana is provisioned with
   a RED/USE dashboard (HTTP rate/p95, JVM heap, circuit breaker state,
   Kafka lag, HikariCP). Trace IDs appear in log lines for log↔trace
   correlation.

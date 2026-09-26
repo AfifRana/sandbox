@@ -10,7 +10,8 @@
 #
 # NodePorts (deploy/helm/order-platform/values.yaml):
 #   gateway 30000, order 30080, product 30081, payment 30082,
-#   notification 30083, auth 30084.
+#   notification 30083, auth 30084, inventory 30085, fulfillment 30086,
+#   saga 30087.
 #
 # The node IP is fixed at 192.168.49.2 for minikube's docker driver on the
 # default minikube network; adjust it if your node IP differs
@@ -50,6 +51,21 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['192.168.49.2:30000']
+
+  - job_name: inventory-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30085']
+
+  - job_name: fulfillment-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30086']
+
+  - job_name: saga-orchestrator-service
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['192.168.49.2:30087']
 
   - job_name: prometheus
     static_configs:
