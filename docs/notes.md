@@ -90,7 +90,7 @@ The minimum test-first scenarios are:
 | Java & Spring Boot | Spring Boot 3.x, Java 21 (records, virtual threads) |
 | REST API and security | Bean Validation, pagination, RFC 7807 problem+json errors; current RS256 JWTs/JWKS/resource-server validation/RBAC; required OAuth2/OIDC authorization server with authorization code + PKCE |
 | Oracle + SQL optimization | Versioned Flyway migrations, constraints and indexes, EXPLAIN PLAN before/after evidence, HikariCP sizing, and a required laptop-sized resource-efficiency study |
-| Microservices | Six services with explicit static routing/configuration, Kafka eventing, and Resilience4j retry/circuit breaker; service discovery and bulkhead isolation are not currently implemented or claimed |
+| Microservices | Nine services (six in Docker Compose, the inventory/fulfillment/saga trio Kubernetes-only) with explicit static routing/configuration, Kafka eventing, and Resilience4j retry/circuit breaker; service discovery and bulkhead isolation are not currently implemented or claimed |
 | JUnit/Mockito | JUnit/Mockito application tests, MVC security tests, ArchUnit tests, JaCoCo reports, and 100% focused PIT for order/payment/product application/domain logic; Testcontainers and a global JaCoCo threshold are not currently implemented or claimed |
 | Design Patterns & Clean Code | Strategy (payments), event-driven Observer-style consumers, Hexagonal architecture, repository ports/adapters, transactional outbox/inbox, cache-aside, circuit-breaker/retry, and planned Saga orchestration |
 | Docker & CI/CD | Multi-stage Dockerfile, docker-compose, GitHub Actions build/test/coverage/image, GHCR publication, protected staging Helm deployment, smoke test, rollback |
