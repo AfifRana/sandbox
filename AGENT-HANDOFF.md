@@ -72,9 +72,14 @@ before claiming any of the affected milestones done.
   - `9b47534` — feat: saga orchestration with fulfillment-service and
     saga-orchestrator-service (the v0.11.0 milestone commit)
   - `2c28ed2` — docs: require runtime teardown after E2E or milestone
-    completion (current branch tip)
+    completion
+  - `a1254ce` — docs: refresh agent handoff and repair its encoding
+    (session context, not milestone content)
+  - `4ba95a3` — docs: update README for the v0.11.0 saga milestone
+    (current branch tip; the v0.11.0 documentation-inclusive tip)
 - Local tags: `orders-v0.9.0` → `c313ecc`; `orders-v0.10.0` → `3a8d46f`;
-  `orders-v0.11.0` → `2c28ed2` (docs-inclusive tip).
+  `orders-v0.11.0` → `4ba95a3` (moved from `2c28ed2` with explicit user
+  approval, because the README milestone update landed afterwards).
 - Old session branch `agents/agent-handoff-md-reading` still exists and points
   at `2a44e52`; it is fully contained in `agents/saga-orchestration` and can
   be deleted.
@@ -89,16 +94,15 @@ before claiming any of the affected milestones done.
   git push origin feature/java-playground --follow-tags
   ```
 
-  This carries `294a55f`, `2a44e52`, `9b47534`, `2c28ed2` and the
-  `orders-v0.11.0` tag. Do not overwrite an existing remote tag without user
-  approval.
+  This carries `294a55f`, `2a44e52`, `9b47534`, `2c28ed2`, `a1254ce`,
+  `4ba95a3` and the `orders-v0.11.0` tag. Do not overwrite an existing remote
+  tag without user approval.
 - `GENERAL-AGENT-GUIDE.md` and `BACKEND-PROJECT-IDEATION.md` are tracked on
   the dedicated `docs` branch (`origin/docs`), which the user maintains
   manually. As of 2026-09-25 `origin/docs` (`0e855ac`) is content-identical
   to this branch's copies — the teardown additions are already pushed there.
   `AGENT-HANDOFF.md` is intentionally NOT on the docs branch; it stays
   session-local in this worktree.
-
 All commits use Conventional Commits and include:
 
 ```text
@@ -548,9 +552,10 @@ Runtime environment).
    Start Docker Desktop, then `minikube start` + `minikube update-context`,
    then the compose `up -d` block with both env vars in the same shell, then
    re-establish port-forwards. Start it only when needed.
-3. **First outstanding task: update `README.md` for v0.11.0** (see open item 1
-   in Session state). Confirm with the user before moving the
-   `orders-v0.11.0` tag.
+3. **`README.md` was updated for v0.11.0 in `4ba95a3`** — the milestone now has
+   its full documentation set (README, `docs/e2e/e2e-v0.11.0.md`,
+   `docs/e2e/README.md`, `docs/progress.md`). Keep that pattern for the next
+   milestone: the README is part of the milestone, not an afterthought.
 4. After that, the next milestone is CI/CD delivery (backlog item 3). Its
    authoritative criteria are in `docs/progress.md` and `docs/notes.md`.
 5. Work in the saga worktree on `agents/saga-orchestration` (or a new
@@ -576,29 +581,29 @@ Completed and committed:
   and `docs/progress.md`.
 - `2c28ed2` added the mandatory teardown policy to `AGENT-HANDOFF.md` and
   `GENERAL-AGENT-GUIDE.md`.
+- `a1254ce` repaired this file's encoding and reconciled its claims against
+  the worktree.
+- `4ba95a3` closed the last v0.11.0 documentation gap by updating
+  `README.md`; `orders-v0.11.0` was moved to that commit with explicit user
+  approval.
 - Saga E2E is fully verified (see the v0.11.0 section). The earlier "e2e
   in progress" state is obsolete.
 - Runtime is torn down, including Docker Desktop (see Runtime environment).
 
 Open items for the next session:
 
-1. **`README.md` was NOT updated for v0.11.0** — this is the one remaining
-   milestone-documentation gap. It still says "Saga orchestration (planned)",
-   lists only six services in the Services table, and leaves the roadmap
-   boxes for "Test-first edge-case policy" and "Saga orchestration" unchecked.
-   The project convention (and this file's checklist) requires the README
-   update to accompany the milestone. Fixing it means the `orders-v0.11.0`
-   tag no longer points at the docs-inclusive tip, so **moving the tag needs
-   explicit user approval**.
-2. `AGENT-HANDOFF.md` is currently **tracked** on this branch (committed in
+1. `AGENT-HANDOFF.md` is currently **tracked** on this branch (committed in
    `2c28ed2`), even though the file itself says it is session-local and must
    not be committed. Resolve this contradiction with the user: either keep it
    tracked deliberately, or `git rm --cached AGENT-HANDOFF.md` and gitignore
    it. Do not silently change the tracking policy.
-3. Open design questions carried over: should order-service drive saga start
+2. Open design questions carried over: should order-service drive saga start
    as part of its order flow (today the saga is started by a direct
    `POST /api/v1/sagas`)? Payment refund/reversal compensation remains out of
    scope until payment-service gains that capability.
+3. The gateway does not route to saga-orchestrator-service; the saga is
+   reachable only on its NodePort. Decide whether to add a gateway route when
+   order-service starts driving the saga.
 
 Verified facts worth reusing:
 
