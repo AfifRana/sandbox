@@ -1,7 +1,9 @@
 # AGENT HANDOFF — Order Management Platform
 
-> This file is temporary session context. Do not commit it, reference it from
-> project documentation, or treat it as part of the application.
+> Session-context handoff, **tracked deliberately** (user decision,
+> 2026-09-26). It is not product documentation: it records how to continue the
+> work, never how the platform behaves, so it must not be referenced from the
+> README or any milestone E2E guide. Refresh it at the end of every session.
 
 ## Project
 
@@ -16,7 +18,8 @@ Core working rules:
    Conventional Commit, and an `orders-vX.Y.Z` tag.
 3. Tags must point to the docs-inclusive milestone tip.
 4. Document installable tools and Windows/Kubernetes recovery steps.
-5. Do not commit this handoff file.
+5. Keep this handoff file tracked and current, but never reference it from
+   product documentation or milestone guides.
 6. `main` is never touched; the user pushes manually.
 
 ## Non-negotiable guardrails for this repo
@@ -43,9 +46,12 @@ before claiming any of the affected milestones done.
   survive a shell restart.
 - Do not let `.._*` Maven artifact folders get tracked; `.gitignore` already
   excludes them, but verify none are staged before commit.
-- Do not commit or reference `AGENT-HANDOFF.md` from tracked project docs;
-  it stays session-local in this worktree. `GENERAL-AGENT-GUIDE.md` and
-  `BACKEND-PROJECT-IDEATION.md` live on the dedicated `docs` branch
+- `AGENT-HANDOFF.md` is tracked on this branch by explicit user decision
+  (2026-09-26). It remains session context, not product documentation: never
+  reference it from the README, `docs/progress.md`, or a milestone E2E guide,
+  and keep handoff-only commits off the `orders-vX.Y.Z` tag so the tag keeps
+  marking the documentation-inclusive milestone tip. `GENERAL-AGENT-GUIDE.md`
+  and `BACKEND-PROJECT-IDEATION.md` live on the dedicated `docs` branch
   (`origin/docs`), which the user maintains manually.
 - Do not overwrite an existing tag or push to `main`; only the user pushes to
   `main`, and moving a tag needs explicit approval.
@@ -73,11 +79,10 @@ before claiming any of the affected milestones done.
     saga-orchestrator-service (the v0.11.0 milestone commit)
   - `2c28ed2` — docs: require runtime teardown after E2E or milestone
     completion
-  - `a1254ce` — docs: refresh agent handoff and repair its encoding
-    (session context, not milestone content)
+  - `a1254ce`, `b142e1c`, `6030b0e` and the later tracking-policy commit
+    — handoff maintenance only (session context, not milestone content; the
+    full set is `git log --oneline f10db7a..HEAD`)
   - `4ba95a3` — docs: update README for the v0.11.0 saga milestone
-  - `b142e1c` — docs: record the README fix and moved tag in the handoff
-    (session context, not milestone content)
   - `f10db7a` — docs: define the Partial status in the roadmap legend
     (`orders-v0.11.0` points here — the v0.11.0 documentation-inclusive tip)
 - Local tags: `orders-v0.9.0` → `c313ecc`; `orders-v0.10.0` → `3a8d46f`;
@@ -100,15 +105,17 @@ before claiming any of the affected milestones done.
   git push origin feature/java-playground --follow-tags
   ```
 
-  This carries `294a55f`, `2a44e52`, `9b47534`, `2c28ed2`, `a1254ce`,
-  `4ba95a3`, `b142e1c`, `f10db7a` and the `orders-v0.11.0` tag. Do not
-  overwrite an existing remote tag without user approval.
+  This carries every commit since `50ed67e` — including `9b47534` (the v0.11.0
+  milestone commit) and the README / progress / E2E documentation — plus the
+  `orders-v0.11.0` tag. Do not overwrite an existing remote tag without user
+  approval.
 - `GENERAL-AGENT-GUIDE.md` and `BACKEND-PROJECT-IDEATION.md` are tracked on
   the dedicated `docs` branch (`origin/docs`), which the user maintains
   manually. As of 2026-09-25 `origin/docs` (`0e855ac`) is content-identical
   to this branch's copies — the teardown additions are already pushed there.
-  `AGENT-HANDOFF.md` is intentionally NOT on the docs branch; it stays
-  session-local in this worktree.
+  `AGENT-HANDOFF.md` is tracked on this branch (see guardrails) but is
+  intentionally NOT on the `docs` branch: `docs` carries the reusable guides,
+  while the handoff is bound to this workstream's session state.
 All commits use Conventional Commits and include:
 
 ```text
@@ -562,13 +569,40 @@ Runtime environment).
    its full documentation set (README, `docs/e2e/e2e-v0.11.0.md`,
    `docs/e2e/README.md`, `docs/progress.md`). Keep that pattern for the next
    milestone: the README is part of the milestone, not an afterthought.
-4. After that, the next milestone is CI/CD delivery (backlog item 3). Its
+4. Nothing is committed or in progress from the previous session; the working
+   tree is clean. The next milestone is CI/CD delivery (backlog item 3). Its
    authoritative criteria are in `docs/progress.md` and `docs/notes.md`.
 5. Work in the saga worktree on `agents/saga-orchestration` (or a new
    `agents/<milestone>` branch off it); never touch `main`.
 6. After finishing: update docs, commit with the trailer, tag
    `orders-vX.Y.Z` on the docs-inclusive tip, tear down the runtime, and
    update this handoff file.
+
+## Moving this work to a new session
+
+Everything the next session needs is in the repository — no state lives only
+in the previous chat:
+
+1. **Worktree:** `D:\Afif\Project\Exploration\sandbox-saga` on branch
+   `agents/saga-orchestration`. Start the new session with that folder open,
+   otherwise the agent's working directory defaults to the main checkout
+   (`D:\Afif\Project\Exploration\sandbox`) and it must use absolute paths.
+2. **Context to read first, in order:** this file → `GENERAL-AGENT-GUIDE.md`
+   → `docs/progress.md` → `README.md` → the `docs/notes.md` requirement map.
+3. **Verify before trusting:** run `git log --oneline -6`, `git tag -l`,
+   `git status --short`, and confirm the tag/tip claims above still hold.
+4. **Runtime is intentionally down** (Docker Desktop included). Do not start
+   it just to read code; start it only when an E2E run is actually needed,
+   and tear it down again afterwards.
+5. **Uncommitted work:** none. If `git status` shows changes, they are not
+   from this session — inspect before discarding anything.
+6. **Branch hygiene:** `feature/java-playground` (the user branch) is a strict
+   ancestor, so the next session can fast-forward it. Only the user pushes to
+   `main`, and only the user pushes the `docs` branch.
+7. **Local-only state to be aware of:** the tags are local until pushed; the
+   `.._*` Maven-folder ignore rule is in `.gitignore`; Docker Desktop must be
+   started before any `docker`/`minikube` command works.
+
 
 
 ## Session state (2026-09-26, saga worktree) — reconciled against the worktree
@@ -578,8 +612,9 @@ the worktree, `git log`, `git tag`, and the docs on 2026-09-26.
 
 Completed and committed:
 
-- Branch `agents/saga-orchestration` at `2c28ed2`; tag `orders-v0.11.0`
-  points at the same commit.
+- Branch `agents/saga-orchestration`; tag `orders-v0.11.0` points at
+  `f10db7a`, the v0.11.0 documentation-inclusive tip (handoff-only commits
+  follow it — read the tip with `git log --oneline -3`).
 - `9b47534` is the v0.11.0 milestone commit: fulfillment-service,
   saga-orchestrator-service, the envelope fix in inventory-service's outbox
   relay, root `pom.xml` modules, Helm chart (inventory 30085 / fulfillment
@@ -600,18 +635,22 @@ Completed and committed:
 
 Open items for the next session:
 
-1. `AGENT-HANDOFF.md` is currently **tracked** on this branch (committed in
-   `2c28ed2`), even though the file itself says it is session-local and must
-   not be committed. Resolve this contradiction with the user: either keep it
-   tracked deliberately, or `git rm --cached AGENT-HANDOFF.md` and gitignore
-   it. Do not silently change the tracking policy.
-2. Open design questions carried over: should order-service drive saga start
+1. Open design questions carried over: should order-service drive saga start
    as part of its order flow (today the saga is started by a direct
    `POST /api/v1/sagas`)? Payment refund/reversal compensation remains out of
    scope until payment-service gains that capability.
-3. The gateway does not route to saga-orchestrator-service; the saga is
+2. The gateway does not route to saga-orchestrator-service; the saga is
    reachable only on its NodePort. Decide whether to add a gateway route when
    order-service starts driving the saga.
+3. Nothing is staged or uncommitted — this session ended with a clean tree.
+
+Resolved this session:
+
+- The `AGENT-HANDOFF.md` tracking question is settled: the file is **tracked
+  deliberately** on `agents/saga-orchestration` by explicit user decision
+  (2026-09-26). Its header, core rule 5, and the guardrail bullet were all
+  updated to match, so the file no longer contradicts itself. It stays off
+  the `docs` branch and out of product docs.
 
 Verified facts worth reusing:
 
@@ -624,8 +663,12 @@ Verified facts worth reusing:
   `66666666-…` 0 stock (rejection), `77777777-…` 500 stock but fulfillment
   always fails (compensation). Seeds: inventory V1 and product
   `V2__seed_saga_sentinel_products.sql`.
-- `GENERAL-AGENT-GUIDE.md` and `BACKEND-PROJECT-IDEATION.md` on this branch
-  are blob-identical to `origin/docs` (`0e855ac`).
+- `GENERAL-AGENT-GUIDE.md` and `BACKEND-PROJECT-IDEATION.md` are mirrored on
+  the dedicated `docs` branch (`origin/docs`). `BACKEND-PROJECT-IDEATION.md`
+  is still blob-identical to `origin/docs` (`0e855ac`).
+  `GENERAL-AGENT-GUIDE.md` now differs from it: the 2026-09-26 handoff-tracking
+  clarification was made on this branch only, so `origin/docs` needs the same
+  edit (or a fast-forward) before the two are identical again.
 - `feature/java-playground` is a strict ancestor (4 commits behind), so
   `git merge --ff-only` works.
 - PowerShell console encoding is CP1252 on this host: writing UTF-8 text

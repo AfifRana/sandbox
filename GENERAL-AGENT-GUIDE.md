@@ -292,8 +292,8 @@ Use this structure for every guide:
    milestone matters, not just *what* it did.
 
 Keep the index table (`docs/e2e/README.md`) in sync: one row per tag with the
-guide link and a one-line description of verified scope. Do not reference a
-temporary handoff file from an E2E guide or README.
+guide link and a one-line description of verified scope. Do not reference the
+handoff file from an E2E guide or README, whether or not that file is tracked.
 
 ### 8. Commit and tag the milestone
 
@@ -654,7 +654,7 @@ git diff <target-branch>...<agent-branch>
 
 ## Handoff file strategy
 
-Maintain a temporary handoff file when work spans sessions or agents. It
+Maintain a handoff file when work spans sessions or agents. It
 should contain:
 
 - repository and branch state;
@@ -665,9 +665,13 @@ should contain:
 - known limitations and generated-artifact warnings;
 - exact next steps and open decisions.
 
-The handoff file is session context, not product documentation. Keep it
-untracked unless the user explicitly requests otherwise. Never reference a
-temporary handoff file from public README or milestone documentation.
+The handoff file is session context, not product documentation. By default keep
+it untracked; track it only when the user explicitly requests it (this
+repository does — the handoff header and guardrails record that decision).
+When it is tracked, still never reference it from public README, milestone
+documentation, or an E2E guide, and keep handoff-only commits off the
+`orders-vX.Y.Z` tag so the tag continues to mark the documentation-inclusive
+milestone tip.
 
 At the end of a session, refresh it to the actual current state. Do not leave
 completed work described as pending or report an old score after a follow-up
