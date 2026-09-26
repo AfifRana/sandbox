@@ -76,10 +76,16 @@ before claiming any of the affected milestones done.
   - `a1254ce` — docs: refresh agent handoff and repair its encoding
     (session context, not milestone content)
   - `4ba95a3` — docs: update README for the v0.11.0 saga milestone
-    (current branch tip; the v0.11.0 documentation-inclusive tip)
+  - `b142e1c` — docs: record the README fix and moved tag in the handoff
+    (session context, not milestone content)
+  - `f10db7a` — docs: define the Partial status in the roadmap legend
+    (`orders-v0.11.0` points here — the v0.11.0 documentation-inclusive tip)
 - Local tags: `orders-v0.9.0` → `c313ecc`; `orders-v0.10.0` → `3a8d46f`;
-  `orders-v0.11.0` → `4ba95a3` (moved from `2c28ed2` with explicit user
+  `orders-v0.11.0` → `f10db7a` (moved twice from `2c28ed2` with explicit user
   approval, because the README milestone update landed afterwards).
+- Convention note: handoff-only commits may land after the tag. The tag marks
+  the last commit carrying *milestone* documentation (README, E2E guide,
+  progress tracker), not necessarily the branch tip.
 - Old session branch `agents/agent-handoff-md-reading` still exists and points
   at `2a44e52`; it is fully contained in `agents/saga-orchestration` and can
   be deleted.
@@ -95,8 +101,8 @@ before claiming any of the affected milestones done.
   ```
 
   This carries `294a55f`, `2a44e52`, `9b47534`, `2c28ed2`, `a1254ce`,
-  `4ba95a3` and the `orders-v0.11.0` tag. Do not overwrite an existing remote
-  tag without user approval.
+  `4ba95a3`, `b142e1c`, `f10db7a` and the `orders-v0.11.0` tag. Do not
+  overwrite an existing remote tag without user approval.
 - `GENERAL-AGENT-GUIDE.md` and `BACKEND-PROJECT-IDEATION.md` are tracked on
   the dedicated `docs` branch (`origin/docs`), which the user maintains
   manually. As of 2026-09-25 `origin/docs` (`0e855ac`) is content-identical
@@ -584,8 +590,10 @@ Completed and committed:
 - `a1254ce` repaired this file's encoding and reconciled its claims against
   the worktree.
 - `4ba95a3` closed the last v0.11.0 documentation gap by updating
-  `README.md`; `orders-v0.11.0` was moved to that commit with explicit user
-  approval.
+  `README.md`; `orders-v0.11.0` was moved to that commit (and then to
+  `f10db7a`) with explicit user approval.
+- `f10db7a` defines the new Partial completion status in the README roadmap
+  legend.
 - Saga E2E is fully verified (see the v0.11.0 section). The earlier "e2e
   in progress" state is obsolete.
 - Runtime is torn down, including Docker Desktop (see Runtime environment).
