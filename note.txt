@@ -1,0 +1,9 @@
+ Please create md file that describe what will we create here, a fresh proejct, separete from any branch, isolated project, for an interview, will not be merge to main, and may be deleted later. 
+
+ context : interview for senior role. but i want create minimalis project to showcase, rest api, crud, redis, kafka, hit another api, and scheduler. Also implement spring batch
+
+ create a docs that will also include progress, e2e test
+
+ update readme for describe project, architecture, diagram, and how will be showcase
+
+ public API : https://open-meteo.com/
