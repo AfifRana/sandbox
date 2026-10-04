@@ -1,6 +1,6 @@
 # Weather Watch
 
-A small, disposable Spring Boot project proposal for a senior-engineering interview. It will demonstrate a REST API with CRUD, PostgreSQL persistence, Redis caching, Kafka events, scheduled Spring Batch forecast ingestion, and integration with the public [Open-Meteo API](https://open-meteo.com/).
+A small, disposable, containerized Spring Boot project proposal for a senior-engineering interview. It will demonstrate a REST API with CRUD, PostgreSQL persistence, Redis caching, Kafka events, scheduled partitioned Spring Batch forecast ingestion, and integration with the public [Open-Meteo API](https://open-meteo.com/).
 
 > **Status:** Planning only. This repository currently has no application source code. The design below describes the intended project, not features that are already implemented.
 >
@@ -8,7 +8,7 @@ A small, disposable Spring Boot project proposal for a senior-engineering interv
 
 ## What we'll build
 
-Users will manage saved weather locations through a small REST API. The application will store locations and forecast snapshots in PostgreSQL, retrieve forecasts from Open-Meteo, cache forecasts in Redis, and publish location-change events to Kafka. A scheduler will launch a Spring Batch job to refresh forecasts for saved locations on a configurable interval. The scope is intentionally limited so the end-to-end behavior is easy to run and explain.
+Users will manage saved weather locations through a small REST API. The application will store locations and forecast snapshots in PostgreSQL, retrieve forecasts from Open-Meteo, cache forecasts in Redis, and publish location-change events to Kafka. A scheduler will launch a partitioned Spring Batch job to refresh forecasts for saved locations on a configurable interval, processing location partitions with bounded concurrency. Docker Compose will run the application and its local infrastructure as containers for a repeatable demo and E2E test environment.
 
 ### Planned architecture
 
@@ -19,12 +19,13 @@ flowchart TD
         Demo["curl or API client"]
     end
     subgraph App["Application Layer - Spring Boot"]
-        Api["REST API"]
+        Api["REST API in app container"]
         Service["Location and weather services"]
         Producer["Kafka event publisher"]
         Consumer["Kafka event consumer"]
         Scheduler["Forecast refresh scheduler"]
-        Batch["Spring Batch job"]
+        Manager["Batch partition manager"]
+        Worker["Partition worker steps"]
     end
     subgraph Data["Data Layer"]
         Pg[("Locations and forecasts")]
@@ -44,22 +45,25 @@ flowchart TD
     Producer -->|"location events"| Kafka
     Kafka -->|"deliver events"| Consumer
     Consumer -->|"invalidate stale forecast"| Cache
-    Scheduler -->|"launch refresh job"| Batch
-    Batch -->|"read locations and write forecasts"| Pg
-    Batch -->|"fetch forecasts"| Meteo
-    Batch -->|"warm forecast cache"| Cache
+    Scheduler -->|"launch refresh job"| Manager
+    Manager -->|"dispatch bounded partitions"| Worker
+    Worker -->|"read and write forecasts"| Pg
+    Worker -->|"fetch forecasts"| Meteo
+    Worker -->|"warm forecast cache"| Cache
 ```
 
-### How it will be showcased
+### Run and showcase
 
-1. Start the application and its local PostgreSQL, Redis, and Kafka dependencies.
+The intended local workflow is Docker Compose: build and start the application, PostgreSQL, Redis, and Kafka together; then exercise the API and scheduled batch flow. Exact Compose file names, environment variables, health checks, and commands will be added with the application scaffold.
+
+1. Build and start the application and its PostgreSQL, Redis, and Kafka dependencies with Docker Compose.
 2. Create, list, update, and delete a saved location using the REST API.
 3. Request a forecast twice and show that the second request is served from Redis.
 4. Change a location and show the Kafka event being consumed and its cached forecast invalidated.
-5. Trigger or wait for the scheduled Spring Batch job; show it fetching forecasts for saved locations and persisting the results.
-6. Run the end-to-end tests to demonstrate the API, persistence, cache, Kafka event flow, scheduled batch processing, and Open-Meteo integration together.
+5. Trigger or wait for the scheduled Spring Batch job; show it dividing locations into partitions, processing those partitions with bounded concurrency, and persisting the results.
+6. Run the end-to-end tests to demonstrate the API, persistence, cache, Kafka event flow, partitioned batch processing, and Open-Meteo integration together.
 
-Exact startup commands and API examples will be added when the application is implemented. See [the project brief](docs/interview-project.md) for scope, progress, and the E2E test plan.
+See [the project brief](docs/interview-project.md) for containerization requirements, E2E cleanup steps, scope, progress, and the test plan.
 
 ## Project documents
 
