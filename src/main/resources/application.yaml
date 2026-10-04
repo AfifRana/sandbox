@@ -17,6 +17,16 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: ${SPRING_KAFKA_CONSUMER_GROUP_ID:weather-watch}
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.example.weatherwatch.location
   batch:
     job:
       enabled: false
@@ -36,3 +46,15 @@ management:
 
 server:
   shutdown: graceful
+
+weather:
+  kafka:
+    create-topic: ${LOCATION_EVENTS_CREATE_TOPIC:true}
+    location-events-topic: ${LOCATION_EVENTS_TOPIC:location-events}
+    send-timeout: ${KAFKA_SEND_TIMEOUT:5s}
+  open-meteo:
+    base-url: ${OPEN_METEO_BASE_URL:https://api.open-meteo.com}
+    connect-timeout: ${OPEN_METEO_CONNECT_TIMEOUT:3s}
+    read-timeout: ${OPEN_METEO_READ_TIMEOUT:10s}
+  forecast:
+    cache-ttl: ${FORECAST_CACHE_TTL:PT10M}

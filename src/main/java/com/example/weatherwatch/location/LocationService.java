@@ -11,14 +11,18 @@ import java.util.List;
 public class LocationService {
 
     private final LocationRepository repository;
+    private final LocationEventPublisher eventPublisher;
 
-    public LocationService(LocationRepository repository) {
+    public LocationService(LocationRepository repository, LocationEventPublisher eventPublisher) {
         this.repository = repository;
+        this.eventPublisher = eventPublisher;
     }
 
     public LocationResponse create(LocationRequest request) {
         Location location = new Location(request.name().trim(), request.latitude(), request.longitude());
-        return LocationResponse.from(repository.save(location));
+        Location saved = repository.save(location);
+        eventPublisher.publish(saved.getId(), LocationEventType.CREATED);
+        return LocationResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -36,11 +40,15 @@ public class LocationService {
     public LocationResponse update(long id, LocationRequest request) {
         Location location = getLocation(id);
         location.update(request.name().trim(), request.latitude(), request.longitude());
-        return LocationResponse.from(repository.save(location));
+        Location updated = repository.save(location);
+        eventPublisher.publish(updated.getId(), LocationEventType.UPDATED);
+        return LocationResponse.from(updated);
     }
 
     public void delete(long id) {
-        repository.delete(getLocation(id));
+        Location location = getLocation(id);
+        repository.delete(location);
+        eventPublisher.publish(id, LocationEventType.DELETED);
     }
 
     private Location getLocation(long id) {

@@ -14,10 +14,11 @@ This is an interview showcase, not a production commitment. It is not intended t
 
 - REST CRUD for saved locations, each with a name, latitude, and longitude.
 - Persist location records in PostgreSQL.
-- Retrieve a forecast from [Open-Meteo](https://open-meteo.com/) using the saved coordinates.
-- Cache successful forecast responses in Redis with a documented TTL.
+- Retrieve current conditions from [Open-Meteo](https://open-meteo.com/) using a saved location's coordinates.
+- Cache successful forecast responses in Redis for 10 minutes under a location-specific key. Location-change events evict that key; until the event is consumed, a coordinate update may briefly leave the prior forecast cached.
 - Publish location-created, location-updated, and location-deleted events to Kafka.
 - Consume location-change events and invalidate the affected forecast cache entry.
+- Use the location ID as the Kafka key and include a unique event ID, operation type, and event timestamp.
 - Use Spring's scheduler to launch a configurable forecast-refresh Spring Batch job.
 - Partition the batch workload by a deterministic range of location IDs; have each worker process its assigned locations, fetch forecasts from Open-Meteo, persist forecast snapshots, and warm the Redis forecast cache.
 - Bound partition concurrency so worker load respects database capacity and Open-Meteo rate limits; make writes idempotent so retrying a partition does not create duplicate or inconsistent snapshots.
@@ -43,7 +44,7 @@ This API is a starting proposal; exact request fields, forecast horizon, and res
 
 1. The REST layer validates requests and delegates to application services.
 2. Application services use a repository to persist saved locations in PostgreSQL.
-3. Forecast requests check Redis first. On a miss, they use the latest persisted forecast when suitable or call Open-Meteo, then cache the successful response for the configured TTL.
+3. Forecast requests check Redis first. On a miss, an HTTP adapter calls Open-Meteo for current conditions, then caches the successful response for the configured TTL.
 4. Location changes publish events to Kafka. A consumer handles events idempotently and invalidates the relevant forecast cache entry.
 5. A configurable scheduler launches a Spring Batch partitioned job. A manager creates deterministic location-ID partitions and dispatches worker steps with a configured concurrency limit. Each worker reads its assigned locations in chunks, fetches forecasts from Open-Meteo, writes forecast snapshots to PostgreSQL, and warms Redis.
 6. The API remains usable when the event consumer or batch job is temporarily unavailable; event delivery and batch outcomes should be observable and tested.
@@ -70,6 +71,7 @@ The runnable application and its local dependencies must be containerized so a r
 - Why PostgreSQL owns durable location data while Redis stores disposable forecast data.
 - Cache-aside behavior, TTL selection, invalidation, and stale-data tradeoffs.
 - Kafka delivery semantics, duplicate events, idempotent consumers, and eventual consistency.
+- Tradeoffs of waiting for Kafka acknowledgement inside a CRUD request versus a transactional outbox, including the database-commit-after-publish failure window.
 - Why scheduled batch refresh is appropriate for refreshing many saved locations, and how partition sizing, bounded concurrency, chunk size, retries, skip policy, job parameters, and restartability affect behavior.
 - How partition boundaries avoid missed or duplicated locations, how worker ExecutionContext carries each partition's input, and how failed partitions can be restarted safely.
 - How to prevent overlapping scheduled launches and distinguish scheduler triggers from Spring Batch job execution and metadata.
@@ -87,8 +89,8 @@ Update this checklist as work is completed. Do not mark implementation or test w
 - [x] Scaffold the Spring Boot application with Java 21, Maven, Spring Boot starters, configuration, and a context smoke test.
 - [ ] Build and verify the app, PostgreSQL, Redis, and Kafka containers together with Docker Compose. Compose syntax is validated; container startup still needs a running Docker daemon.
 - [x] Implement location CRUD and PostgreSQL persistence with Flyway schema migration, request validation, and H2-backed HTTP tests.
-- [ ] Implement the Open-Meteo adapter and Redis forecast cache.
-- [ ] Implement Kafka location events and cache invalidation.
+- [x] Implement the Open-Meteo current-forecast adapter, forecast endpoint, and Redis cache-aside behavior with a configurable TTL.
+- [x] Implement keyed Kafka location events for location create/update/delete and idempotent forecast cache invalidation.
 - [ ] Implement the scheduled, partitioned Spring Batch forecast-refresh job, persistence, and cache warming.
 - [ ] Add and run unit, integration, and end-to-end tests.
 - [ ] Verify the complete demo flow and document exact run commands.
@@ -131,6 +133,9 @@ The current local stack is defined in `compose.yaml`. Start it with `docker comp
 | Reuse a cached forecast | Repeat the same request before TTL expiry | Cached response is returned and provider is not called again |
 | Expire forecast data | Advance or wait past the configured TTL | Next request calls the provider and refreshes the cache |
 | Invalidate on location change | Update a location and wait for its Kafka event to be consumed | The old forecast cache entry is removed; the next request refreshes it |
+| Publish location events | Create, update, and delete locations | Each operation publishes a keyed event with an event ID and operation type |
+| Broker publish failure | Stop Kafka and attempt to create a location | API returns service unavailable and the location write rolls back |
+| Consume duplicate location event | Deliver a duplicate location-change event | Cache eviction remains safe and location cache entry stays absent |
 | Run partitioned forecast batch | Insert locations spanning multiple partitions and launch the job | Every location is assigned to one partition, processed, persisted, and cached |
 | Bound partition concurrency | Configure a worker limit and observe active workers | Concurrent workers never exceed the configured limit |
 | Schedule batch launch | Enable the scheduler with a short test interval | A job execution is launched without starting overlapping duplicate executions |
@@ -147,7 +152,8 @@ The current local stack is defined in `compose.yaml`. Start it with `docker comp
 - Successful CRUD requests and responses.
 - A provider-call count or test assertion showing forecast cache reuse.
 - Kafka event publication and consumer processing for a location change.
+- Verify location event publish failures are visible and do not leave a successful-looking CRUD response.
 - Spring Batch job/manager/worker execution summary, partition assignments, processed item counts, and persisted forecast snapshot evidence.
 - E2E test command, summary, cleanup result, and any known limitations.
 
-Run `mvn test` for the saved-location HTTP and persistence tests, which use an in-memory H2 database and clear location records before each test. The suite covers create/read/update/delete, ordered listing, invalid input, and missing IDs. These tests do not require Docker and are not yet the planned container-backed E2E suite; E2E test implementation and automated cleanup wiring remain future work.
+Run `mvn test` for the saved-location and forecast API tests. The MockMvc tests use an in-memory H2 database and clear location records before each test; the external client uses a deterministic mock HTTP server, and the Redis cache adapter is unit-tested with mocked Redis operations. Coverage includes location CRUD, validation, missing IDs, cache hit/miss, cache TTL serialization, Open-Meteo response mapping, and provider failure handling. These tests do not require Docker and are not yet the planned container-backed E2E suite; E2E test implementation and automated cleanup wiring remain future work.

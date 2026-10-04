@@ -2,7 +2,7 @@
 
 A small, disposable, containerized Spring Boot project proposal for a senior-engineering interview. It will demonstrate a REST API with CRUD, PostgreSQL persistence, Redis caching, Kafka events, scheduled partitioned Spring Batch forecast ingestion, and integration with the public [Open-Meteo API](https://open-meteo.com/).
 
-> **Status:** Spring Boot and Docker Compose scaffold with saved-location CRUD and PostgreSQL persistence. Redis caching, Kafka events, Open-Meteo integration, scheduler, and partitioned batch job are still planned.
+> **Status:** Spring Boot and Docker Compose scaffold with saved-location CRUD, PostgreSQL persistence, Open-Meteo current-forecast retrieval, Redis caching, and Kafka location events/cache invalidation. Scheduler and partitioned batch job are still planned.
 >
 > **Project lifecycle:** This is an isolated interview showcase, not a production feature. It is not intended to be merged into `main` and may be deleted after the interview. These documents do not create Git isolation: the current workspace is inside an existing repository. Keep implementation in a separate disposable working copy if strict repository isolation is required.
 
@@ -76,14 +76,25 @@ With the stack healthy:
    | `PUT` | `/api/locations/{id}` | Update a location |
    | `DELETE` | `/api/locations/{id}` | Delete a location |
 
-2. Request a forecast twice and show that the second request is served from Redis.
-3. Change a location and show the Kafka event being consumed and its cached forecast invalidated.
+   Example create and forecast requests:
+
+   ```sh
+   curl -X POST http://localhost:8080/api/locations \
+     -H "Content-Type: application/json" \
+     -d '{"name":"Jakarta","latitude":-6.2,"longitude":106.8}'
+   curl http://localhost:8080/api/locations/1/forecast
+   ```
+
+   The forecast example assumes a fresh database where the new record receives ID `1`; otherwise use the ID returned by `POST`.
+
+2. Request a forecast twice; the first request calls Open-Meteo and caches its current conditions for 10 minutes, and the second request uses Redis.
+3. Create, update, or delete a location and show its keyed Kafka event being consumed and its forecast cache entry invalidated. CRUD waits for broker acknowledgement; a publish failure returns `503` and rolls back the database operation.
 4. Trigger or wait for the scheduled Spring Batch job; show it dividing locations into partitions, processing those partitions with bounded concurrency, and persisting the results.
 5. Run the end-to-end tests to demonstrate the API, persistence, cache, Kafka event flow, partitioned batch processing, and Open-Meteo integration together.
 
 The app image exposes only the HTTP API on `127.0.0.1`; database, Redis, and Kafka ports remain private to the Compose network. See [the project brief](docs/interview-project.md) for containerization details, E2E cleanup steps, scope, progress, and the test plan.
 
-The initial scaffold can also be tested locally with Java 21 and Maven:
+Run the saved-location and forecast API tests locally with Java 21 and Maven:
 
 ```sh
 mvn test

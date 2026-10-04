@@ -10,6 +10,11 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_BATCH_JOB_ENABLED: "false"
+      LOCATION_EVENTS_TOPIC: ${LOCATION_EVENTS_TOPIC:-location-events}
+      LOCATION_EVENTS_CREATE_TOPIC: "true"
+      KAFKA_SEND_TIMEOUT: ${KAFKA_SEND_TIMEOUT:-5s}
+      FORECAST_CACHE_TTL: ${FORECAST_CACHE_TTL:-PT10M}
+      OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     depends_on:

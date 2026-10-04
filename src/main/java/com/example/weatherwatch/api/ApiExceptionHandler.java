@@ -1,6 +1,8 @@
 package com.example.weatherwatch.api;
 
 import com.example.weatherwatch.location.LocationNotFoundException;
+import com.example.weatherwatch.forecast.ForecastProviderException;
+import com.example.weatherwatch.location.LocationEventPublishException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +31,24 @@ public class ApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
         problem.setType(URI.create("about:blank"));
         problem.setTitle("Request validation failed");
+        return problem;
+    }
+
+    @ExceptionHandler(ForecastProviderException.class)
+    ProblemDetail handleForecastProviderError(ForecastProviderException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_GATEWAY, exception.getMessage());
+        problem.setType(URI.create("about:blank"));
+        problem.setTitle("Forecast provider unavailable");
+        return problem;
+    }
+
+    @ExceptionHandler(LocationEventPublishException.class)
+    ProblemDetail handleEventPublishError(LocationEventPublishException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+        problem.setType(URI.create("about:blank"));
+        problem.setTitle("Location event service unavailable");
         return problem;
     }
 }
