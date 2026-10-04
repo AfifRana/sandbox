@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-This is a proposed architecture for the containerized Weather Watch interview showcase, based on the requested REST CRUD, Redis, Kafka, scheduled partitioned Spring Batch processing, and Open-Meteo integration. Docker Compose will run the application and local infrastructure for development and E2E tests. No application source code exists yet, so the components and technology versions below are design targets, not detected implementation facts.
+This describes the current Weather Watch scaffold and its proposed target architecture. Saved-location REST CRUD and PostgreSQL persistence are implemented; Redis caching, Kafka events, Open-Meteo integration, and scheduled partitioned Spring Batch processing remain design targets.
 
 ## Application Architecture
 
@@ -48,11 +48,11 @@ flowchart TD
 
 | Layer | Technology | Version | Purpose |
 |---|---|---|---|
-| Application | Java and Spring Boot in a Docker image | TBD | REST endpoints, validation, services, and dependency wiring |
-| Local runtime | Docker Compose | TBD | Run the application and local dependencies as an isolated, repeatable stack |
-| Persistence | PostgreSQL container | TBD | Durable saved-location and forecast records |
-| Cache | Redis container | TBD | Forecast response cache with TTL |
-| Messaging | Kafka container | TBD | Asynchronous location-change events |
+| Application | Java 21 and Spring Boot 3.5.6 in a Docker image | 21 / 3.5.6 | REST endpoints, validation, services, and dependency wiring |
+| Local runtime | Docker Compose | Compose v2 | Run the application and local dependencies as an isolated, repeatable stack |
+| Persistence | PostgreSQL container with Flyway migrations | 17.6 | Durable saved-location and forecast records |
+| Cache | Redis container | 7.4.2 | Forecast response cache with TTL |
+| Messaging | Kafka container | 3.9.1 | Asynchronous location-change events |
 | Scheduling and batch | Spring scheduling and partitioned Spring Batch | TBD | Periodically refresh forecasts using bounded parallel location partitions |
 | External API | Open-Meteo | Public API | Forecast data by latitude and longitude |
 
@@ -70,7 +70,7 @@ PostgreSQL is the source of truth for saved locations and persisted forecast sna
 
 ## Component Relationships
 
-The component diagram is also a target design. Component names describe intended responsibilities and may change when the code is created.
+The location REST controller, service, repository, request/response DTOs, and database migration exist. Other components in the diagram describe intended responsibilities and have not yet been implemented.
 
 <!-- mermaid-checked: no \n, no em-dash/en-dash, no {} in labels, subgraphs are id["label"], arrows are -->|"label"|, all subgraphs closed by end, ids unique -->
 ```mermaid

@@ -84,8 +84,9 @@ Update this checklist as work is completed. Do not mark implementation or test w
 - [x] Define the project goal, disposable lifecycle, and initial scope.
 - [x] Document a proposed component architecture and showcase flow.
 - [x] Define an initial E2E test plan.
-- [ ] Scaffold the Spring Boot application and Docker Compose environment for the app, PostgreSQL, Redis, and Kafka.
-- [ ] Implement location CRUD and persistence.
+- [x] Scaffold the Spring Boot application with Java 21, Maven, Spring Boot starters, configuration, and a context smoke test.
+- [ ] Build and verify the app, PostgreSQL, Redis, and Kafka containers together with Docker Compose. Compose syntax is validated; container startup still needs a running Docker daemon.
+- [x] Implement location CRUD and PostgreSQL persistence with Flyway schema migration, request validation, and H2-backed HTTP tests.
 - [ ] Implement the Open-Meteo adapter and Redis forecast cache.
 - [ ] Implement Kafka location events and cache invalidation.
 - [ ] Implement the scheduled, partitioned Spring Batch forecast-refresh job, persistence, and cache warming.
@@ -100,13 +101,14 @@ Run the application, PostgreSQL, Redis, and Kafka as containers in a repeatable,
 
 ### E2E run and cleanup procedure
 
-The exact commands and Compose file names are TBD until the project is scaffolded. The implemented E2E instructions must follow this lifecycle:
+The current local stack is defined in `compose.yaml`. Start it with `docker compose up --build -d`, check health with `docker compose ps`, and call `http://localhost:8080/actuator/health/readiness`. View logs with `docker compose logs -f app`. `docker compose down` stops the normal demo stack but preserves its named volumes.
 
 1. Start an isolated Compose project for E2E with its own project name and dedicated volumes; wait for health checks for the app and required dependencies.
+   Use `docker compose -p weather-watch-e2e up --build -d` after stopping any normal stack that is using the same host API port.
 2. Run the E2E suite against that stack and use a unique run identifier for created locations and related records/events.
 3. In the test suite's teardown/finally path, delete test-created locations and forecast snapshots, clear the associated Redis keys, and verify the test Kafka consumer group or isolated test topic does not leak into later runs. Preserve Spring Batch execution metadata during test assertions; it may be discarded with the dedicated E2E database afterward.
 4. Collect failure diagnostics (test summary and relevant container logs) before tearing down the isolated stack.
-5. Stop and remove only the E2E Compose project and its dedicated volumes. The command below is a placeholder pattern, to be adapted to the actual Compose file and project name:
+5. Stop and remove only the E2E Compose project and its dedicated volumes:
 
    ```sh
    docker compose -p weather-watch-e2e down --volumes --remove-orphans
@@ -114,7 +116,7 @@ The exact commands and Compose file names are TBD until the project is scaffolde
 
    This removes named volumes and therefore deletes E2E database, cache, and broker state. Do not use this cleanup command with the normal demo Compose project or any project containing data you want to retain.
 
-6. For the regular demo environment, provide a separate stop command that preserves named volumes, plus an explicitly destructive full-reset command with a warning.
+6. For the regular demo environment, `docker compose down` preserves named volumes. Its destructive full reset is `docker compose down --volumes --remove-orphans`; only use it when local data may be discarded.
 
 ### Acceptance scenarios
 
@@ -148,4 +150,4 @@ The exact commands and Compose file names are TBD until the project is scaffolde
 - Spring Batch job/manager/worker execution summary, partition assignments, processed item counts, and persisted forecast snapshot evidence.
 - E2E test command, summary, cleanup result, and any known limitations.
 
-Commands other than the Compose cleanup pattern above and the exact test framework are intentionally TBD until the application scaffold exists.
+Run `mvn test` for the saved-location HTTP and persistence tests, which use an in-memory H2 database and clear location records before each test. The suite covers create/read/update/delete, ordered listing, invalid input, and missing IDs. These tests do not require Docker and are not yet the planned container-backed E2E suite; E2E test implementation and automated cleanup wiring remain future work.

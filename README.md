@@ -2,7 +2,7 @@
 
 A small, disposable, containerized Spring Boot project proposal for a senior-engineering interview. It will demonstrate a REST API with CRUD, PostgreSQL persistence, Redis caching, Kafka events, scheduled partitioned Spring Batch forecast ingestion, and integration with the public [Open-Meteo API](https://open-meteo.com/).
 
-> **Status:** Planning only. This repository currently has no application source code. The design below describes the intended project, not features that are already implemented.
+> **Status:** Spring Boot and Docker Compose scaffold with saved-location CRUD and PostgreSQL persistence. Redis caching, Kafka events, Open-Meteo integration, scheduler, and partitioned batch job are still planned.
 >
 > **Project lifecycle:** This is an isolated interview showcase, not a production feature. It is not intended to be merged into `main` and may be deleted after the interview. These documents do not create Git isolation: the current workspace is inside an existing repository. Keep implementation in a separate disposable working copy if strict repository isolation is required.
 
@@ -54,16 +54,40 @@ flowchart TD
 
 ### Run and showcase
 
-The intended local workflow is Docker Compose: build and start the application, PostgreSQL, Redis, and Kafka together; then exercise the API and scheduled batch flow. Exact Compose file names, environment variables, health checks, and commands will be added with the application scaffold.
+The local workflow uses Docker Compose to build and start the application, PostgreSQL, Redis, and Kafka together. Copy `.env.example` to `.env` if you want to override the documented local-only defaults, then run:
 
-1. Build and start the application and its PostgreSQL, Redis, and Kafka dependencies with Docker Compose.
-2. Create, list, update, and delete a saved location using the REST API.
-3. Request a forecast twice and show that the second request is served from Redis.
-4. Change a location and show the Kafka event being consumed and its cached forecast invalidated.
-5. Trigger or wait for the scheduled Spring Batch job; show it dividing locations into partitions, processing those partitions with bounded concurrency, and persisting the results.
-6. Run the end-to-end tests to demonstrate the API, persistence, cache, Kafka event flow, partitioned batch processing, and Open-Meteo integration together.
+```sh
+docker compose up --build -d
+docker compose ps
+curl http://localhost:8080/actuator/health/readiness
+```
 
-See [the project brief](docs/interview-project.md) for containerization requirements, E2E cleanup steps, scope, progress, and the test plan.
+View application logs with `docker compose logs -f app`. Stop the stack while preserving normal demo data with `docker compose down`. To discard the local database, Redis, and Kafka data, use `docker compose down --volumes --remove-orphans`; this is destructive.
+
+With the stack healthy:
+
+1. Exercise the readiness endpoint and saved-location CRUD endpoints:
+
+   | Method | Path | Purpose |
+   |---|---|---|
+   | `POST` | `/api/locations` | Create a location |
+   | `GET` | `/api/locations` | List locations |
+   | `GET` | `/api/locations/{id}` | Get one location |
+   | `PUT` | `/api/locations/{id}` | Update a location |
+   | `DELETE` | `/api/locations/{id}` | Delete a location |
+
+2. Request a forecast twice and show that the second request is served from Redis.
+3. Change a location and show the Kafka event being consumed and its cached forecast invalidated.
+4. Trigger or wait for the scheduled Spring Batch job; show it dividing locations into partitions, processing those partitions with bounded concurrency, and persisting the results.
+5. Run the end-to-end tests to demonstrate the API, persistence, cache, Kafka event flow, partitioned batch processing, and Open-Meteo integration together.
+
+The app image exposes only the HTTP API on `127.0.0.1`; database, Redis, and Kafka ports remain private to the Compose network. See [the project brief](docs/interview-project.md) for containerization details, E2E cleanup steps, scope, progress, and the test plan.
+
+The initial scaffold can also be tested locally with Java 21 and Maven:
+
+```sh
+mvn test
+```
 
 ## Project documents
 
