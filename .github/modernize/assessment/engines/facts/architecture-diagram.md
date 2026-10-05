@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-This describes the current Weather Watch implementation and its proposed target architecture. Saved-location REST CRUD, PostgreSQL persistence, Open-Meteo current-forecast retrieval, Redis caching, and Kafka location-change events/cache invalidation are implemented; scheduled partitioned Spring Batch processing remains a design target.
+This describes the current Weather Watch implementation. Saved-location REST CRUD, PostgreSQL persistence, Open-Meteo current-forecast retrieval, Redis caching, Kafka location-change events/cache invalidation, and scheduled partitioned Spring Batch forecast refresh are implemented.
 
 ## Application Architecture
 
@@ -53,25 +53,25 @@ flowchart TD
 | Persistence | PostgreSQL container with Flyway migrations | 17.6 | Durable saved-location and forecast records |
 | Cache | Redis container with 10-minute forecast TTL | 7.4.2 | Forecast response cache with TTL |
 | Messaging | Kafka container | 3.9.1 | Asynchronous location-change events |
-| Scheduling and batch | Spring scheduling and partitioned Spring Batch | TBD | Periodically refresh forecasts using bounded parallel location partitions |
+| Scheduling and batch | Spring scheduling and partitioned Spring Batch | Spring Boot 3.5.6 managed | Periodically refresh forecasts using bounded parallel location partitions |
 | External API | Open-Meteo | Public API | Forecast data by latitude and longitude |
 
 ### Data Storage & External Services
 
-PostgreSQL is the source of truth for saved locations and persisted forecast snapshots. The implemented forecast endpoint checks Redis under a stable location-specific key; on a miss it requests current conditions from Open-Meteo and caches a successful response for 10 minutes. Kafka carries keyed location-change events so cache invalidation is decoupled from the request path. A coordinate update can briefly leave the prior forecast cached while the event is in flight. Publishing waits for broker acknowledgement and reports failures to the API; database operations roll back on publish failure, though a database commit failure after broker acknowledgement can still leave an event without a committed location change. A transactional outbox is a possible future improvement if stronger delivery guarantees are required. A scheduler launches a planned Spring Batch partitioned job: a manager creates deterministic location-ID partitions and bounded worker steps process each partition in chunks, retrieve forecasts, write snapshots, and warm Redis.
+PostgreSQL is the source of truth for saved locations and persisted forecast snapshots. The forecast endpoint checks Redis under a stable location-specific key; on a miss it requests current conditions from Open-Meteo and caches a successful response for 10 minutes. Kafka carries keyed location-change events so cache invalidation is decoupled from the request path. A coordinate update can briefly leave the prior forecast cached while the event is in flight. Publishing waits for broker acknowledgement and reports failures to the API; database operations roll back on publish failure, though a database commit failure after broker acknowledgement can still leave an event without a committed location change. A transactional outbox is a possible future improvement if stronger delivery guarantees are required. The scheduler launches a Spring Batch partitioned job hourly by default: a manager creates deterministic location-ID range partitions and bounded worker steps process each partition in chunks, fetch forecasts, persist one snapshot per location/forecast time, and warm Redis.
 
 ### Key Architectural Decisions
 
 - Use a cache-aside forecast flow: read Redis first, call Open-Meteo on a miss, and cache successful results for a bounded TTL. Key by location ID and evict on consumed location-change events; accept the documented short eventual-consistency window.
 - Publish keyed location changes to Kafka and make the consumer idempotent because duplicate delivery is possible. Events use location ID as the key and carry a unique event ID and operation type.
 - Wait for Kafka acknowledgement during CRUD so broker failures are visible; this adds request latency and does not fully close the database-commit-after-publish failure window.
-- Separate scheduling from batch processing: the scheduler triggers a job, while Spring Batch owns job metadata, chunk processing, partition boundaries, and restart behavior.
+- Separate scheduling from batch processing: the scheduler triggers a job, while Spring Batch owns job metadata, chunk processing, partition boundaries, and restart behavior. Transient provider errors are retried up to a bounded limit; other failures fail the partition.
 - Partition batch work by deterministic location-ID ranges and cap worker concurrency to control database pressure and external API request rates.
 - Keep external API and broker details behind application components; use deterministic provider responses in automated tests.
 
 ## Component Relationships
 
-The location and forecast REST controllers, location service and repository, Open-Meteo client, Redis forecast cache, keyed Kafka publisher and consumer, request/response DTOs, and location database migration exist. The scheduler/batch components describe intended responsibilities and have not yet been implemented.
+The location and forecast REST controllers, location service and repository, Open-Meteo client, Redis forecast cache, keyed Kafka publisher and consumer, forecast snapshot repository, scheduled partition manager/worker steps, request/response DTOs, and database migrations exist.
 
 <!-- mermaid-checked: no \n, no em-dash/en-dash, no {} in labels, subgraphs are id["label"], arrows are -->|"label"|, all subgraphs closed by end, ids unique -->
 ```mermaid

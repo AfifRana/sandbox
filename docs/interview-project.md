@@ -4,7 +4,7 @@
 
 Build a small, disposable project to discuss senior-level engineering decisions in an interview. The project should be understandable in a short walkthrough while demonstrating a realistic path through a REST API, CRUD, persistence, caching, asynchronous messaging, scheduled work, batch processing, and an external API.
 
-This is an interview showcase, not a production commitment. It is not intended to be merged into `main` and may be deleted after the interview. The current workspace is inside an existing Git repository; writing this brief does not create a separate repository, branch, or worktree. If strict source-control isolation is required, implement it in a separate disposable working copy.
+This is an interview showcase, not a production commitment. It is not intended to be merged into `main` and may be deleted after the interview. It lives in a separate disposable Git worktree on the `feature/spring-basic` branch, so it can be removed without touching `main`.
 
 ## Proposed product
 
@@ -22,7 +22,9 @@ This is an interview showcase, not a production commitment. It is not intended t
 - Use Spring's scheduler to launch a configurable forecast-refresh Spring Batch job.
 - Partition the batch workload by a deterministic range of location IDs; have each worker process its assigned locations, fetch forecasts from Open-Meteo, persist forecast snapshots, and warm the Redis forecast cache.
 - Bound partition concurrency so worker load respects database capacity and Open-Meteo rate limits; make writes idempotent so retrying a partition does not create duplicate or inconsistent snapshots.
-- Record job and step outcomes so failed runs can be diagnosed and safely retried.
+- Persist forecast snapshots uniquely by location and forecast time, and update an existing snapshot on repeated runs.
+- Retry transient Open-Meteo provider errors up to a bounded attempt count; fail a partition on other errors rather than silently dropping forecast data.
+- Record job and step outcomes in Spring Batch metadata so failed runs can be diagnosed and restarted with the same job parameters.
 - Provide clear validation errors and handle external-service failures without returning misleading successful responses.
 
 The Open-Meteo forecast API does not require an API key for its public non-commercial API. Keep the provider behind a small application interface so its HTTP details do not leak into API or domain code.
@@ -46,7 +48,7 @@ This API is a starting proposal; exact request fields, forecast horizon, and res
 2. Application services use a repository to persist saved locations in PostgreSQL.
 3. Forecast requests check Redis first. On a miss, an HTTP adapter calls Open-Meteo for current conditions, then caches the successful response for the configured TTL.
 4. Location changes publish events to Kafka. A consumer handles events idempotently and invalidates the relevant forecast cache entry.
-5. A configurable scheduler launches a Spring Batch partitioned job. A manager creates deterministic location-ID partitions and dispatches worker steps with a configured concurrency limit. Each worker reads its assigned locations in chunks, fetches forecasts from Open-Meteo, writes forecast snapshots to PostgreSQL, and warms Redis.
+5. A configurable scheduler launches a Spring Batch partitioned job (default: once per hour). A manager creates deterministic location-ID range partitions and dispatches worker steps with a configured concurrency limit. Each worker reads its assigned locations in chunks, fetches forecasts from Open-Meteo, writes forecast snapshots to PostgreSQL, and warms Redis.
 6. The API remains usable when the event consumer or batch job is temporarily unavailable; event delivery and batch outcomes should be observable and tested.
 
 ### Deliberate scope limits
@@ -65,6 +67,8 @@ The runnable application and its local dependencies must be containerized so a r
 - Keep configuration in documented environment variables and a safe local example file. Never commit credentials; avoid publishing database, Redis, or Kafka ports to the host unless the demo or tests require them.
 - Support a repeatable Compose-based end-to-end test environment. Use an isolated Compose project name and dedicated volumes for E2E so cleanup cannot remove unrelated local data.
 - Include the exact build, start, health/status, test, log, and cleanup commands after the actual Compose and build files are established.
+
+The scheduled batch uses a one-hour fixed delay by default, a partition grid size of four, at most four worker threads, a chunk size of ten, and up to three attempts for transient provider exceptions. Override these with `WEATHER_BATCH_FIXED_DELAY`, `WEATHER_BATCH_GRID_SIZE`, `WEATHER_BATCH_MAX_WORKERS`, `WEATHER_BATCH_CHUNK_SIZE`, and `WEATHER_BATCH_RETRY_LIMIT`. Set `WEATHER_BATCH_ENABLED=false` to disable automatic runs.
 
 ## Senior-level discussion points
 
@@ -87,40 +91,38 @@ Update this checklist as work is completed. Do not mark implementation or test w
 - [x] Document a proposed component architecture and showcase flow.
 - [x] Define an initial E2E test plan.
 - [x] Scaffold the Spring Boot application with Java 21, Maven, Spring Boot starters, configuration, and a context smoke test.
-- [ ] Build and verify the app, PostgreSQL, Redis, and Kafka containers together with Docker Compose. Compose syntax is validated; container startup still needs a running Docker daemon.
+- [x] Build and verify the app, PostgreSQL, Redis, Kafka, and deterministic Open-Meteo stub together with Docker Compose; the isolated runner cleans its own containers, network, and volumes.
 - [x] Implement location CRUD and PostgreSQL persistence with Flyway schema migration, request validation, and H2-backed HTTP tests.
 - [x] Implement the Open-Meteo current-forecast adapter, forecast endpoint, and Redis cache-aside behavior with a configurable TTL.
 - [x] Implement keyed Kafka location events for location create/update/delete and idempotent forecast cache invalidation.
-- [ ] Implement the scheduled, partitioned Spring Batch forecast-refresh job, persistence, and cache warming.
-- [ ] Add and run unit, integration, and end-to-end tests.
-- [ ] Verify the complete demo flow and document exact run commands.
+- [x] Implement the scheduled, partitioned Spring Batch forecast-refresh job, persistence, retry policy, and cache warming.
+- [x] Add and run unit, batch integration, and container-backed end-to-end tests.
+- [x] Verify the complete demo flow and document exact run commands.
 
 ## End-to-end test plan
 
 ### Test approach
 
-Run the application, PostgreSQL, Redis, and Kafka as containers in a repeatable, isolated Docker Compose E2E environment. Stub or intercept Open-Meteo HTTP responses for deterministic tests; keep at least one optional manual smoke check against the public API. Tests should not depend on public network availability. Give test records and events a unique run identifier and clean them up even when an assertion fails.
+Run the application, PostgreSQL, Redis, Kafka, and a WireMock Open-Meteo stub in a repeatable, isolated Docker Compose E2E environment. The PowerShell runner uses an isolated project name, unique host ports, and deterministic provider responses; it runs 15 scenarios covering CRUD, validation, cache reuse and TTL expiry, Kafka invalidation and keyed events, provider failure and timeout, partitioned and scheduled batch runs, transient retry, permanent failure, and a Kafka outage, and prints a pass/fail table. It captures service logs on failure and removes only its own containers, network, and volumes in a `finally` block. The Maven unit and batch integration tests exercise validation, retries, partitioning, repeated jobs, and provider behavior. Keep any manual smoke check against the public API optional.
 
 ### E2E run and cleanup procedure
 
 The current local stack is defined in `compose.yaml`. Start it with `docker compose up --build -d`, check health with `docker compose ps`, and call `http://localhost:8080/actuator/health/readiness`. View logs with `docker compose logs -f app`. `docker compose down` stops the normal demo stack but preserves its named volumes.
 
-1. Start an isolated Compose project for E2E with its own project name and dedicated volumes; wait for health checks for the app and required dependencies.
-   Use `docker compose -p weather-watch-e2e up --build -d` after stopping any normal stack that is using the same host API port.
-2. Run the E2E suite against that stack and use a unique run identifier for created locations and related records/events.
-3. In the test suite's teardown/finally path, delete test-created locations and forecast snapshots, clear the associated Redis keys, and verify the test Kafka consumer group or isolated test topic does not leak into later runs. Preserve Spring Batch execution metadata during test assertions; it may be discarded with the dedicated E2E database afterward.
-4. Collect failure diagnostics (test summary and relevant container logs) before tearing down the isolated stack.
-5. Stop and remove only the E2E Compose project and its dedicated volumes:
+1. Run `.\scripts\e2e.ps1` from PowerShell. It starts the app, PostgreSQL, Redis, Kafka, and WireMock with a unique Compose project name and unused host ports.
+2. The E2E runner waits for app/stub readiness, runs each scenario with uniquely named locations, injects provider failures through WireMock admin mappings, stops and restarts only its own Kafka container for the outage scenario, and fails the run if any scenario fails.
+3. The runner captures service logs before cleanup if an assertion fails. A `finally` block always removes only the isolated test project and its dedicated volumes. Batch metadata, test records, Redis data, and Kafka state are discarded with that run's volumes.
+4. If cleanup itself fails, use the printed project name to remove only that project:
 
-   ```sh
-   docker compose -p weather-watch-e2e down --volumes --remove-orphans
+   ```powershell
+   docker compose --project-name <project-name> --profile e2e down --volumes --remove-orphans
    ```
 
-   This removes named volumes and therefore deletes E2E database, cache, and broker state. Do not use this cleanup command with the normal demo Compose project or any project containing data you want to retain.
-
-6. For the regular demo environment, `docker compose down` preserves named volumes. Its destructive full reset is `docker compose down --volumes --remove-orphans`; only use it when local data may be discarded.
+   Do not use this cleanup command with the normal demo Compose project or any project containing data you want to retain. For the regular demo environment, `docker compose down` preserves named volumes. Its destructive full reset is `docker compose down --volumes --remove-orphans`; only use it when local data may be discarded.
 
 ### Acceptance scenarios
+
+Every scenario below is verified automatically. Container E2E (`scripts/e2e.ps1`) covers all except the three marked **Maven only**, which cannot be observed from outside the app: bounded concurrency, restart of a failed job (the app exposes no restart endpoint), and literal duplicate delivery of one event (the consumer's eviction is idempotent and unit-tested; E2E instead sends repeated update events). Maven tests also cover most other rows at unit/integration level.
 
 | Scenario | Exercise | Expected result |
 |---|---|---|
@@ -135,14 +137,14 @@ The current local stack is defined in `compose.yaml`. Start it with `docker comp
 | Invalidate on location change | Update a location and wait for its Kafka event to be consumed | The old forecast cache entry is removed; the next request refreshes it |
 | Publish location events | Create, update, and delete locations | Each operation publishes a keyed event with an event ID and operation type |
 | Broker publish failure | Stop Kafka and attempt to create a location | API returns service unavailable and the location write rolls back |
-| Consume duplicate location event | Deliver a duplicate location-change event | Cache eviction remains safe and location cache entry stays absent |
+| Consume duplicate location event | Deliver a duplicate location-change event | **Maven only for literal duplicates:** cache eviction remains safe and location cache entry stays absent |
 | Run partitioned forecast batch | Insert locations spanning multiple partitions and launch the job | Every location is assigned to one partition, processed, persisted, and cached |
-| Bound partition concurrency | Configure a worker limit and observe active workers | Concurrent workers never exceed the configured limit |
+| Bound partition concurrency | Configure a worker limit and observe active workers | **Maven only:** concurrent workers never exceed the configured limit |
 | Schedule batch launch | Enable the scheduler with a short test interval | A job execution is launched without starting overlapping duplicate executions |
 | Retry a transient provider error | Make a provider call fail transiently, then succeed | Configured retry behavior succeeds without duplicate or corrupt forecast snapshots |
-| Handle a permanent item failure | Return a non-retryable error for one location | Failure is visible in job/step results; other locations follow the documented skip/fail policy |
-| Restart a failed partition | Fail one partition, then restart the job with supported parameters | Completed work is not duplicated and the failed partition can complete safely |
-| Restart or repeat a job | Rerun with supported job parameters after a partial or completed execution | Batch metadata and idempotent writes prevent duplicate or inconsistent forecast state |
+| Handle a permanent item failure | Return a non-retryable error for one location | The affected partition/job fails visibly; no forecast is silently skipped |
+| Restart a failed job | Rerun a failed job instance with the same parameters after fixing the cause | **Maven only:** Spring Batch accepts the same parameters and the job completes, with no duplicate snapshots |
+| Repeat a completed job | Rerun with new job parameters | Snapshot uniqueness updates existing location/time rows rather than duplicating them |
 | Handle provider failure | Make the provider return an error or time out | API returns an explicit service error and does not cache a fake success |
 | Handle duplicate events | Deliver the same location-change event more than once | Consumer remains safe and the cache reaches the same final state |
 
@@ -156,4 +158,4 @@ The current local stack is defined in `compose.yaml`. Start it with `docker comp
 - Spring Batch job/manager/worker execution summary, partition assignments, processed item counts, and persisted forecast snapshot evidence.
 - E2E test command, summary, cleanup result, and any known limitations.
 
-Run `mvn test` for the saved-location and forecast API tests. The MockMvc tests use an in-memory H2 database and clear location records before each test; the external client uses a deterministic mock HTTP server, and the Redis cache adapter is unit-tested with mocked Redis operations. Coverage includes location CRUD, validation, missing IDs, cache hit/miss, cache TTL serialization, Open-Meteo response mapping, and provider failure handling. These tests do not require Docker and are not yet the planned container-backed E2E suite; E2E test implementation and automated cleanup wiring remain future work.
+Run `mvn verify` for the unit and Spring Batch integration tests. MockMvc tests use an in-memory H2 database; the external HTTP client uses deterministic mocks, and Redis cache operations are unit-tested with mocked Redis operations. Coverage includes location CRUD, validation, cache hit/miss and TTL, Open-Meteo response mapping and failures, partition range assignment, scheduled job processing, idempotent snapshots, and transient retries. Run `.\scripts\e2e.ps1` for the container-backed E2E flow; it uses WireMock and isolated Compose resources, so it does not depend on public API availability.

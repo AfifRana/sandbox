@@ -2,15 +2,15 @@
 
 A small, disposable, containerized Spring Boot project proposal for a senior-engineering interview. It will demonstrate a REST API with CRUD, PostgreSQL persistence, Redis caching, Kafka events, scheduled partitioned Spring Batch forecast ingestion, and integration with the public [Open-Meteo API](https://open-meteo.com/).
 
-> **Status:** Spring Boot and Docker Compose scaffold with saved-location CRUD, PostgreSQL persistence, Open-Meteo current-forecast retrieval, Redis caching, and Kafka location events/cache invalidation. Scheduler and partitioned batch job are still planned.
+> **Status:** Implemented saved-location CRUD, PostgreSQL persistence, Open-Meteo current forecasts, Redis caching, Kafka location events/cache invalidation, and a scheduled partitioned Spring Batch forecast refresh.
 >
 > **Project lifecycle:** This is an isolated interview showcase, not a production feature. It is not intended to be merged into `main` and may be deleted after the interview. These documents do not create Git isolation: the current workspace is inside an existing repository. Keep implementation in a separate disposable working copy if strict repository isolation is required.
 
-## What we'll build
+## What it demonstrates
 
-Users will manage saved weather locations through a small REST API. The application will store locations and forecast snapshots in PostgreSQL, retrieve forecasts from Open-Meteo, cache forecasts in Redis, and publish location-change events to Kafka. A scheduler will launch a partitioned Spring Batch job to refresh forecasts for saved locations on a configurable interval, processing location partitions with bounded concurrency. Docker Compose will run the application and its local infrastructure as containers for a repeatable demo and E2E test environment.
+Users manage saved weather locations through a small REST API. The application stores locations and forecast snapshots in PostgreSQL, retrieves forecasts from Open-Meteo, caches forecasts in Redis, and publishes location-change events to Kafka. A scheduler launches a partitioned Spring Batch job to refresh forecasts for saved locations on a configurable interval, processing location partitions with bounded concurrency. Docker Compose runs the application and local infrastructure as containers for a repeatable demo and E2E test environment.
 
-### Planned architecture
+### Architecture
 
 <!-- mermaid-checked: no \n, no em-dash/en-dash, no {} in labels, subgraphs are id["label"], arrows are -->|"label"|, all subgraphs closed by end, ids unique -->
 ```mermaid
@@ -64,6 +64,8 @@ curl http://localhost:8080/actuator/health/readiness
 
 View application logs with `docker compose logs -f app`. Stop the stack while preserving normal demo data with `docker compose down`. To discard the local database, Redis, and Kafka data, use `docker compose down --volumes --remove-orphans`; this is destructive.
 
+The scheduled refresh is enabled by default with a one-hour fixed delay. Adjust `WEATHER_BATCH_FIXED_DELAY`, `WEATHER_BATCH_GRID_SIZE`, `WEATHER_BATCH_MAX_WORKERS`, `WEATHER_BATCH_CHUNK_SIZE`, and `WEATHER_BATCH_RETRY_LIMIT` in `.env` to tune the demo. For deterministic API-only work, set `WEATHER_BATCH_ENABLED=false`.
+
 With the stack healthy:
 
 1. Exercise the readiness endpoint and saved-location CRUD endpoints:
@@ -89,7 +91,7 @@ With the stack healthy:
 
 2. Request a forecast twice; the first request calls Open-Meteo and caches its current conditions for 10 minutes, and the second request uses Redis.
 3. Create, update, or delete a location and show its keyed Kafka event being consumed and its forecast cache entry invalidated. CRUD waits for broker acknowledgement; a publish failure returns `503` and rolls back the database operation.
-4. Trigger or wait for the scheduled Spring Batch job; show it dividing locations into partitions, processing those partitions with bounded concurrency, and persisting the results.
+4. Trigger or wait for the scheduled Spring Batch job; show it dividing locations into partitions, processing those partitions with bounded concurrency, persisting forecast snapshots, and warming Redis.
 5. Run the end-to-end tests to demonstrate the API, persistence, cache, Kafka event flow, partitioned batch processing, and Open-Meteo integration together.
 
 The app image exposes only the HTTP API on `127.0.0.1`; database, Redis, and Kafka ports remain private to the Compose network. See [the project brief](docs/interview-project.md) for containerization details, E2E cleanup steps, scope, progress, and the test plan.
@@ -99,6 +101,14 @@ Run the saved-location and forecast API tests locally with Java 21 and Maven:
 ```sh
 mvn test
 ```
+
+Run the isolated container-backed E2E flow from PowerShell:
+
+```powershell
+.\scripts\e2e.ps1
+```
+
+It allocates a unique Compose project and host ports, stubs Open-Meteo, runs 15 scenarios (CRUD, validation, cache reuse and TTL expiry, Kafka invalidation, events and outage rollback, provider failure and timeout, partitioned/scheduled batch, retry and permanent failure) and prints a pass/fail table, then removes only that run's containers, network, and volumes in a `finally` cleanup. On failure it prints service logs before cleanup.
 
 ## Project documents
 
