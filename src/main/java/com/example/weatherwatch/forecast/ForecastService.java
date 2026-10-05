@@ -25,7 +25,7 @@ public class ForecastService {
     public ForecastResponse getForecast(long locationId) {
         Location location = locationRepository.findById(locationId)
                 .orElseThrow(() -> new LocationNotFoundException(locationId));
-        String cacheKey = cacheKey(location.getId());
+        String cacheKey = ForecastCacheKeys.forLocation(location.getId());
 
         return forecastCache.get(cacheKey)
                 .orElseGet(() -> fetchAndCache(cacheKey, location));
@@ -36,9 +36,5 @@ public class ForecastService {
                 location.getLatitude(), location.getLongitude());
         forecastCache.put(cacheKey, forecast);
         return forecast;
-    }
-
-    private String cacheKey(long locationId) {
-        return "forecast:location:%d".formatted(locationId);
     }
 }
