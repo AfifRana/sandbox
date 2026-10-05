@@ -48,6 +48,13 @@ server:
   shutdown: graceful
 
 weather:
+  batch:
+    enabled: ${WEATHER_BATCH_ENABLED:true}
+    fixed-delay: ${WEATHER_BATCH_FIXED_DELAY:PT1H}
+    grid-size: ${WEATHER_BATCH_GRID_SIZE:4}
+    max-workers: ${WEATHER_BATCH_MAX_WORKERS:4}
+    chunk-size: ${WEATHER_BATCH_CHUNK_SIZE:10}
+    retry-limit: ${WEATHER_BATCH_RETRY_LIMIT:3}
   kafka:
     create-topic: ${LOCATION_EVENTS_CREATE_TOPIC:true}
     location-events-topic: ${LOCATION_EVENTS_TOPIC:location-events}
