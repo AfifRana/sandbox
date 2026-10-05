@@ -10,11 +10,18 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_BATCH_JOB_ENABLED: "false"
+      WEATHER_BATCH_ENABLED: ${WEATHER_BATCH_ENABLED:-true}
+      WEATHER_BATCH_FIXED_DELAY: ${WEATHER_BATCH_FIXED_DELAY:-PT1H}
+      WEATHER_BATCH_GRID_SIZE: ${WEATHER_BATCH_GRID_SIZE:-4}
+      WEATHER_BATCH_MAX_WORKERS: ${WEATHER_BATCH_MAX_WORKERS:-4}
+      WEATHER_BATCH_CHUNK_SIZE: ${WEATHER_BATCH_CHUNK_SIZE:-10}
+      WEATHER_BATCH_RETRY_LIMIT: ${WEATHER_BATCH_RETRY_LIMIT:-3}
       LOCATION_EVENTS_TOPIC: ${LOCATION_EVENTS_TOPIC:-location-events}
       LOCATION_EVENTS_CREATE_TOPIC: "true"
       KAFKA_SEND_TIMEOUT: ${KAFKA_SEND_TIMEOUT:-5s}
       FORECAST_CACHE_TTL: ${FORECAST_CACHE_TTL:-PT10M}
       OPEN_METEO_BASE_URL: ${OPEN_METEO_BASE_URL:-https://api.open-meteo.com}
+      OPEN_METEO_READ_TIMEOUT: ${OPEN_METEO_READ_TIMEOUT:-10s}
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:8080"
     depends_on:
@@ -86,6 +93,14 @@ services:
       retries: 12
       start_period: 20s
     restart: unless-stopped
+
+  open-meteo-stub:
+    image: wiremock/wiremock:3.13.1
+    profiles: ["e2e"]
+    ports:
+      - "127.0.0.1:${E2E_STUB_PORT:-18081}:8080"
+    volumes:
+      - ./src/test/resources/wiremock:/home/wiremock:ro
 
 volumes:
   postgres-data:
