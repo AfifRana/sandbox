@@ -1,6 +1,32 @@
+param(
+    [Alias("UseBash")]
+    [switch]$UseSh
+)
+
 $ErrorActionPreference = "Stop"
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
+if ($UseSh) {
+    $sh = Get-Command sh -ErrorAction SilentlyContinue
+    if ($null -eq $sh) {
+        throw "sh was not found on PATH. Install Git Bash or MSYS2, or run .\scripts\e2e.ps1 without -UseSh."
+    }
+
+    $previousPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $shExitCode = 0
+    Push-Location $PSScriptRoot
+    try {
+        & $sh.Source ./e2e.sh
+        $shExitCode = $LASTEXITCODE
+    }
+    finally {
+        Pop-Location
+        $ErrorActionPreference = $previousPreference
+    }
+    exit $shExitCode
+}
+
 $projectName = "weather-watch-e2e-$PID-$([guid]::NewGuid().ToString('N').Substring(0, 8))"
 $environmentNames = @(
     "APP_PORT",

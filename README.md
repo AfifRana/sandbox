@@ -108,7 +108,15 @@ Run the isolated container-backed E2E flow from PowerShell:
 .\scripts\e2e.ps1
 ```
 
-It allocates a unique Compose project and host ports, stubs Open-Meteo, runs 15 scenarios (CRUD, validation, cache reuse and TTL expiry, Kafka invalidation, events and outage rollback, provider failure and timeout, partitioned/scheduled batch, retry and permanent failure) and prints a pass/fail table, then removes only that run's containers, network, and volumes in a `finally` cleanup. On failure it prints service logs before cleanup.
+To run the POSIX `sh` implementation through the same entry point, use `-UseSh` (requires `sh` on `PATH`; Git Bash or MSYS2 provides it on Windows). `-UseBash` is also accepted as an alias:
+
+```powershell
+.\scripts\e2e.ps1 -UseSh
+```
+
+You can also run the POSIX shell script directly with `sh scripts/e2e.sh`.
+
+It allocates a unique Compose project and host ports, stubs Open-Meteo, runs 15 scenarios (CRUD, validation, cache reuse and TTL expiry, Kafka invalidation, events and outage rollback, provider failure and timeout, partitioned/scheduled batch, retry and permanent failure) and prints a pass/fail table, then removes only that run's containers, network, and volumes. On failure it prints service logs before cleanup.
 
 ## Project documents
 
